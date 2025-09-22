@@ -1,6 +1,8 @@
 .cache*
 build*
 toolchain
+stm32f411re
 
 nob
 nob.old
+compile_commands.json
