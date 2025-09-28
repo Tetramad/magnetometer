@@ -203,6 +203,8 @@ static int build(void) {
         BUILD_DIR "work_queue.o",
         BUILD_DIR "input.o",
         BUILD_DIR "tim3.o",
+        BUILD_DIR "tmag5173.o",
+        BUILD_DIR "lis2mdl.o",
         CRT_DIR "crtbegin.o",
         CRT_DIR "crtend.o",
         CRT_DIR "crti.o",

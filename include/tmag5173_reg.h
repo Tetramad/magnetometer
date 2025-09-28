@@ -1,5 +1,5 @@
-#ifndef TMAG5173_Q1_H
-#define TMAG5173_Q1_H
+#ifndef TMAG5173_REG_H
+#define TMAG5173_REG_H
 
 /* clang-format off */
 #define SLAVE_ADDRESS (0x35)
@@ -181,4 +181,4 @@
 #define DEVICE_STATUS_RESET_VALUE (0x10U)
 /* clang-format on */
 
-#endif /* TMAG5173_Q1_H */
+#endif /* TMAG5173_REG_H */
