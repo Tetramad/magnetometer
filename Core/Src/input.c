@@ -34,9 +34,9 @@ int Input_UpdateContext(struct InputContext *ctx) {
     const int select = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7) == GPIO_PIN_RESET;
     __enable_irq();
 
-    LOG_DBG(left, "INPUT: left=");
-    LOG_DBG(right, "INPUT: right=");
-    LOG_DBG(select, "INPUT: select=");
+    LOG_DBG("INPUT: left=: %d", left);
+    LOG_DBG("INPUT: right=: %d", right);
+    LOG_DBG("INPUT: select=: %d", select);
 
     ctx->left = left == 0 ? 0 : -(2 * !!ctx->left - 1);
     ctx->right = right == 0 ? 0 : -(2 * !!ctx->right - 1);

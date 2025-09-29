@@ -61,7 +61,7 @@ int Sensor_Measure(void *payload) {
 	err = SENSOR_MEASURE();
 	if (err < 0) {
 		LOG_ERR("sensor: failed to measure sensor readings");
-		LOG_ERR(err, "sensor: err=");
+		LOG_ERR("sensor: err=: %d", err);
 		return -1;
 	}
 
