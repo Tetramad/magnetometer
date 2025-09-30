@@ -39,7 +39,7 @@ int (*displayables[])(void*) = {
 };
 size_t displayablesIndex = 0U;
 
-struct InputContext inputContext = { 0 };
+Input_ContextTypeDef inputContext = { 0 };
 
 LOG_LEVEL_SET(LOG_LEVEL_INF);
 

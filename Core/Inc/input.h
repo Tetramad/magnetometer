@@ -7,14 +7,14 @@
 #ifndef __INPUT_H
 #define __INPUT_H
 
-struct InputContext {
+typedef struct {
     int left;
     int right;
     int select;
-};
+} Input_ContextTypeDef;
 
 int Input_Init(void *payload);
-struct InputContext Input_NewContext(void);
-int Input_UpdateContext(struct InputContext *ctx);
+Input_ContextTypeDef Input_NewContext(void);
+int Input_UpdateContext(Input_ContextTypeDef *ctx);
 
 #endif /*__INPUT_H*/

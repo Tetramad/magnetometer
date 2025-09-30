@@ -14,8 +14,8 @@ int Input_Init(void *payload) {
     return 0;
 }
 
-struct InputContext Input_NewContext(void) {
-    return (struct InputContext){.left = 0, .right = 0, .select = 0};
+Input_ContextTypeDef Input_NewContext(void) {
+    return (Input_ContextTypeDef){.left = 0, .right = 0, .select = 0};
 }
 
 /*
@@ -27,7 +27,7 @@ struct InputContext Input_NewContext(void) {
  * -1       0         0
  * -1       1         -1
  */
-int Input_UpdateContext(struct InputContext *ctx) {
+int Input_UpdateContext(Input_ContextTypeDef *ctx) {
     __disable_irq();
     const int left = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) == GPIO_PIN_RESET;
     const int right = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6) == GPIO_PIN_RESET;

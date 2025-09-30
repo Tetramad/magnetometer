@@ -8,6 +8,7 @@
 #define __LIS2MDL_REG_H
 
 #define SLAVE_ADDRESS (0x1E << 1)
+#define AUTO_INCREMENT (0x80)
 
 #define CFG_REG_A (0x60)
 

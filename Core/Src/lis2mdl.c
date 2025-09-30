@@ -63,13 +63,13 @@ int LIS2MDL_Measure(void) {
 		return -__LINE__;
 	}
 
-	status = HAL_I2C_Mem_Read(&hi2c1, SLAVE_ADDRESS, STATUS_REG,
+	status = HAL_I2C_Mem_Read(&hi2c1, SLAVE_ADDRESS, STATUS_REG | AUTO_INCREMENT,
 	I2C_MEMADD_SIZE_8BIT, buffer, sizeof(buffer) - 2U, 25U);
 	if (status != HAL_OK) {
 		return -__LINE__;
 	}
 
-	status = HAL_I2C_Mem_Read(&hi2c1, SLAVE_ADDRESS, TEMP_OUT_L_REG,
+	status = HAL_I2C_Mem_Read(&hi2c1, SLAVE_ADDRESS, TEMP_OUT_L_REG | AUTO_INCREMENT,
 	I2C_MEMADD_SIZE_8BIT, &buffer[7], 2U, 25U);
 	if (status != HAL_OK) {
 		return -__LINE__;
@@ -132,7 +132,12 @@ static int configure(void) {
 
 static int is_configured(void) {
 	HAL_StatusTypeDef status = HAL_OK;
+	const uint32_t tick = HAL_GetTick();
 	unsigned char cfg_reg_a = 0x00U;
+
+	if (tick < 20U) {
+		BusyWait_ms(tick - 20U);
+	}
 
 	status = HAL_I2C_Mem_Read(&hi2c1, SLAVE_ADDRESS, CFG_REG_A,
 	I2C_MEMADD_SIZE_8BIT, &cfg_reg_a, 1U, 25U);
