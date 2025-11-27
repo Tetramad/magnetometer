@@ -27,7 +27,6 @@
 #include <stdint.h>
 
 #include <log.h>
-#include <busy_wait.h>
 
 /* USER CODE END Includes */
 
@@ -53,6 +52,8 @@ TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
 LOG_LEVEL_SET(LOG_LEVEL_INF);
+
+MOD_HandleTypeDef hmod;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,8 +62,9 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-HAL_StatusTypeDef task_adc(void *self);
-HAL_StatusTypeDef task_print_ticks(void *self);
+static void NotMX_MOD_Init(void);
+static HAL_StatusTypeDef Task_ModeUpdate(void);
+static HAL_StatusTypeDef task_print_ticks(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -101,6 +103,8 @@ int main(void) {
 	MX_ADC1_Init();
 	MX_TIM1_Init();
 	/* USER CODE BEGIN 2 */
+	NotMX_MOD_Init();
+
 	HAL_Delay(200);
 	LOG_INF("Magnetometer");
 	LOG_INF("H/W Rev.2");
@@ -109,15 +113,14 @@ int main(void) {
 	struct tick_aligned_task {
 		uint32_t target_tick;
 		const uint32_t tick_alignment;
-		HAL_StatusTypeDef (*const task)(void*);
+		HAL_StatusTypeDef (*const task)(void);
 		const void *user_data;
 	};
 
 	struct tick_aligned_task tasks[] = { [0] = { .target_tick = 0,
-			.tick_alignment = 1000, .task = task_adc, .user_data = NULL }, [1
+			.tick_alignment = 1000, .task = Task_ModeUpdate }, [1
 			] = { .target_tick = 0, .tick_alignment = 100, .task =
-					task_print_ticks, .user_data =
-			NULL } };
+					task_print_ticks } };
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -143,7 +146,7 @@ int main(void) {
 					- (current_tick % task->tick_alignment)
 					+ task->tick_alignment;
 			if (task->task != NULL) {
-				status = task->task(task);
+				status = task->task();
 				if (status != HAL_OK) {
 					LOG_ERR("task(%p) returns error (%d)", task, status);
 					goto error;
@@ -340,39 +343,52 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
-HAL_StatusTypeDef task_adc(void *self) {
-	UNUSED(self);
-	HAL_StatusTypeDef status = HAL_OK;
+static void NotMX_MOD_Init(void) {
+	hmod.ADCInstance = &hadc1;
 
-	status = HAL_ADC_Start(&hadc1);
-	if (status != HAL_OK) {
-		LOG_ERR("failed to start ADC");
-		goto error;
+	if (MOD_Init(&hmod) != HAL_OK) {
+		Error_Handler();
 	}
-
-	status = HAL_ADC_PollForConversion(&hadc1, 10);
-	if (status != HAL_OK) {
-		LOG_ERR("failed to poll ADC");
-		goto error;
-	}
-
-	uint32_t val = HAL_ADC_GetValue(&hadc1);
-	LOG_INF("ADC result: %d", val);
-
-	status = HAL_ADC_Stop(&hadc1);
-	if (status != HAL_OK) {
-		LOG_ERR("failed to stop ADC");
-		goto error;
-	}
-
-	return HAL_OK;
-	error: HAL_ADC_Stop(&hadc1);
-	return HAL_ERROR;
 }
 
-HAL_StatusTypeDef task_print_ticks(void *self) {
-	UNUSED(self);
+HAL_StatusTypeDef Task_ModeUpdate(void) {
+	HAL_StatusTypeDef status = HAL_OK;
 
+	status = MOD_UpdateMode(&hmod);
+	if (status != HAL_OK) {
+		LOG_ERR("failed to update mode");
+		return HAL_ERROR;
+	}
+
+	const MOD_ModeStateTypedef mode_state = MOD_ReadMode(&hmod);
+
+	switch (mode_state) {
+	default:
+	case MOD_MODE_STATE_UNKNOWN:
+		LOG_INF("Mode [Unknown]");
+		return HAL_OK;
+	case MOD_MODE_STATE_X:
+		LOG_INF("Mode [X]");
+		return HAL_OK;
+	case MOD_MODE_STATE_Y:
+		LOG_INF("Mode [Y]");
+		return HAL_OK;
+	case MOD_MODE_STATE_Z:
+		LOG_INF("Mode [Z]");
+		return HAL_OK;
+	case MOD_MODE_STATE_MAGNITUDE:
+		LOG_INF("Mode [Magnitude]");
+		return HAL_OK;
+	case MOD_MODE_STATE_BEARING:
+		LOG_INF("Mode [Bearing]");
+		return HAL_OK;
+	case MOD_MODE_STATE_SOH:
+		LOG_INF("Mode [SOH]");
+		return HAL_OK;
+	}
+}
+
+HAL_StatusTypeDef task_print_ticks(void) {
 	const uint32_t current_tick = HAL_GetTick();
 
 	LOG_INF("current tick=%u", current_tick);
