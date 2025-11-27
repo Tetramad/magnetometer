@@ -21,14 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <assert.h>
 #include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <log.h>
 #include <busy_wait.h>
-#include <work_queue.h>
-#include <sensor.h>
-#include <display.h>
-#include <input.h>
 
 /* USER CODE END Includes */
 
@@ -48,10 +47,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef hi2c1;
+ADC_HandleTypeDef hadc1;
 
-TIM_HandleTypeDef htim3;
-TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
 LOG_LEVEL_SET(LOG_LEVEL_INF);
@@ -60,11 +58,11 @@ LOG_LEVEL_SET(LOG_LEVEL_INF);
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_TIM3_Init(void);
-static void MX_TIM4_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+HAL_StatusTypeDef task_adc(void *self);
+HAL_StatusTypeDef task_print_ticks(void *self);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -79,8 +77,7 @@ static void MX_TIM4_Init(void);
 int main(void) {
 
 	/* USER CODE BEGIN 1 */
-	int err = 0;
-
+	HAL_StatusTypeDef status = HAL_OK;
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -101,58 +98,76 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	MX_I2C1_Init();
-	MX_TIM3_Init();
-	MX_TIM4_Init();
+	MX_ADC1_Init();
+	MX_TIM1_Init();
 	/* USER CODE BEGIN 2 */
-	LOG_INF("Digital Magnetometer");
-	LOG_INF("Hardware Version: v0.1.0");
-	LOG_INF("Firmware Version: v0.2.0");
+	HAL_Delay(200);
+	LOG_INF("Magnetometer");
+	LOG_INF("H/W Rev.2");
+	LOG_INF("F/W Ver.1.1.0");
 
-	err = WorkQueue_Init();
-	if (err < 0) {
-		LOG_ERR("failed to initialize work queue");
-		exit(EXIT_FAILURE);
-	}
+	struct tick_aligned_task {
+		uint32_t target_tick;
+		const uint32_t tick_alignment;
+		HAL_StatusTypeDef (*const task)(void*);
+		const void *user_data;
+	};
 
-	err = WorkQueue_Enqueue(WORK_PRIORITY_INIT, Sensor_Init, NULL);
-	if (err < 0) {
-		LOG_ERR("failed to enqueue sensor initialization");
-		exit(EXIT_FAILURE);
-	}
-
-	err = WorkQueue_Enqueue(WORK_PRIORITY_INIT, Input_Init, NULL);
-	if (err < 0) {
-		LOG_ERR("failed to enqueue input initialization");
-		exit(EXIT_FAILURE);
-	}
-
-	err = WorkQueue_Enqueue(WORK_PRIORITY_INIT, Display_Init, NULL);
-	if (err < 0) {
-		LOG_ERR("failed to enqueue sensor initialization");
-		exit(EXIT_FAILURE);
-	}
-
+	struct tick_aligned_task tasks[] = { [0] = { .target_tick = 0,
+			.tick_alignment = 1000, .task = task_adc, .user_data = NULL }, [1
+			] = { .target_tick = 0, .tick_alignment = 100, .task =
+					task_print_ticks, .user_data =
+			NULL } };
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	WorkTypeDef work = { 0 };
+	assert(sizeof(tasks) / sizeof(*tasks) > 0);
 	while (1) {
-		if (WorkQueue_Dequeue(&work) < 0) {
-			__WFE();
+		/**
+		 * TODO: Tick Overflow dectection logic needed. it will be broken after nearly 49 days.
+		 */
+		const uint32_t current_tick = HAL_GetTick();
+
+		struct tick_aligned_task *task = NULL;
+		for (struct tick_aligned_task *t = &tasks[0];
+				t < &tasks[sizeof(tasks) / sizeof(*tasks)]; ++t) {
+			if (t->target_tick <= current_tick) {
+				task = t;
+				break;
+			}
+		}
+
+		if (task != NULL) {
+			task->target_tick = current_tick
+					- (current_tick % task->tick_alignment)
+					+ task->tick_alignment;
+			if (task->task != NULL) {
+				status = task->task(task);
+				if (status != HAL_OK) {
+					LOG_ERR("task(%p) returns error (%d)", task, status);
+					goto error;
+				}
+			}
 			continue;
 		}
 
-		err = work.procedure(work.payload);
-		if (err < 0) {
-			LOG_ERR("app: work procedure returns error: %d", err);
-		} else {
-			LOG_DBG("app: work procedure succeeded");
+		task = &tasks[0];
+		for (struct tick_aligned_task *t = &tasks[0];
+				t < &tasks[sizeof(tasks) / sizeof(*tasks)]; ++t) {
+			if (task->target_tick > t->target_tick) {
+				task = t;
+			}
 		}
+
+		HAL_Delay(task->target_tick - current_tick);
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+	}
+
+	error: for (;;) {
+		__WFE();
 	}
 	/* USER CODE END 3 */
 }
@@ -186,7 +201,7 @@ void SystemClock_Config(void) {
 	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
 			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV4;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
@@ -196,118 +211,94 @@ void SystemClock_Config(void) {
 }
 
 /**
- * @brief I2C1 Initialization Function
+ * @brief ADC1 Initialization Function
  * @param None
  * @retval None
  */
-static void MX_I2C1_Init(void) {
+static void MX_ADC1_Init(void) {
 
-	/* USER CODE BEGIN I2C1_Init 0 */
+	/* USER CODE BEGIN ADC1_Init 0 */
 
-	/* USER CODE END I2C1_Init 0 */
+	/* USER CODE END ADC1_Init 0 */
 
-	/* USER CODE BEGIN I2C1_Init 1 */
+	ADC_ChannelConfTypeDef sConfig = { 0 };
 
-	/* USER CODE END I2C1_Init 1 */
-	hi2c1.Instance = I2C1;
-	hi2c1.Init.ClockSpeed = 100000;
-	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	hi2c1.Init.OwnAddress1 = 0;
-	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	hi2c1.Init.OwnAddress2 = 0;
-	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+	/* USER CODE BEGIN ADC1_Init 1 */
+
+	/* USER CODE END ADC1_Init 1 */
+
+	/** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+	 */
+	hadc1.Instance = ADC1;
+	hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
+	hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+	hadc1.Init.ScanConvMode = DISABLE;
+	hadc1.Init.ContinuousConvMode = DISABLE;
+	hadc1.Init.DiscontinuousConvMode = DISABLE;
+	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+	hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+	hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+	hadc1.Init.NbrOfConversion = 1;
+	hadc1.Init.DMAContinuousRequests = DISABLE;
+	hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	if (HAL_ADC_Init(&hadc1) != HAL_OK) {
 		Error_Handler();
 	}
-	/* USER CODE BEGIN I2C1_Init 2 */
 
-	/* USER CODE END I2C1_Init 2 */
+	/** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+	 */
+	sConfig.Channel = ADC_CHANNEL_1;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN ADC1_Init 2 */
+
+	/* USER CODE END ADC1_Init 2 */
 
 }
 
 /**
- * @brief TIM3 Initialization Function
+ * @brief TIM1 Initialization Function
  * @param None
  * @retval None
  */
-static void MX_TIM3_Init(void) {
+static void MX_TIM1_Init(void) {
 
-	/* USER CODE BEGIN TIM3_Init 0 */
+	/* USER CODE BEGIN TIM1_Init 0 */
 
-	/* USER CODE END TIM3_Init 0 */
+	/* USER CODE END TIM1_Init 0 */
 
 	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
 	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
 
-	/* USER CODE BEGIN TIM3_Init 1 */
+	/* USER CODE BEGIN TIM1_Init 1 */
 
-	/* USER CODE END TIM3_Init 1 */
-	htim3.Instance = TIM3;
-	htim3.Init.Prescaler = 79;
-	htim3.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-	htim3.Init.Period = 10000;
-	htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-	if (HAL_TIM_Base_Init(&htim3) != HAL_OK) {
+	/* USER CODE END TIM1_Init 1 */
+	htim1.Instance = TIM1;
+	htim1.Init.Prescaler = 0;
+	htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim1.Init.Period = 65535;
+	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim1.Init.RepetitionCounter = 0;
+	htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+	if (HAL_TIM_Base_Init(&htim1) != HAL_OK) {
 		Error_Handler();
 	}
 	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-	if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK) {
+	if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK) {
 		Error_Handler();
 	}
 	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
 	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig)
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig)
 			!= HAL_OK) {
 		Error_Handler();
 	}
-	/* USER CODE BEGIN TIM3_Init 2 */
+	/* USER CODE BEGIN TIM1_Init 2 */
 
-	/* USER CODE END TIM3_Init 2 */
-
-}
-
-/**
- * @brief TIM4 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM4_Init(void) {
-
-	/* USER CODE BEGIN TIM4_Init 0 */
-
-	/* USER CODE END TIM4_Init 0 */
-
-	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
-	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
-
-	/* USER CODE BEGIN TIM4_Init 1 */
-
-	/* USER CODE END TIM4_Init 1 */
-	htim4.Instance = TIM4;
-	htim4.Init.Prescaler = 399;
-	htim4.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-	htim4.Init.Period = 2000;
-	htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-	if (HAL_TIM_Base_Init(&htim4) != HAL_OK) {
-		Error_Handler();
-	}
-	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-	if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK) {
-		Error_Handler();
-	}
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig)
-			!= HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN TIM4_Init 2 */
-
-	/* USER CODE END TIM4_Init 2 */
+	/* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -325,50 +316,69 @@ static void MX_GPIO_Init(void) {
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOC_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10,
+			GPIO_PIN_RESET);
 
-	/*Configure GPIO pin : PA0 */
-	GPIO_InitStruct.Pin = GPIO_PIN_0;
+	/*Configure GPIO pins : PA8 PA9 PA10 */
+	GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : PB4 */
-	GPIO_InitStruct.Pin = GPIO_PIN_4;
+	/*Configure GPIO pin : PB5 */
+	GPIO_InitStruct.Pin = GPIO_PIN_5;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : PB5 PB6 PB7 */
-	GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	/* USER CODE BEGIN MX_GPIO_Init_2 */
-	/*Configure GPIO pins : PA1 PA2 PA3 PA4 PA5 PA6 PA */
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-
-	GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4
-			| GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+HAL_StatusTypeDef task_adc(void *self) {
+	UNUSED(self);
+	HAL_StatusTypeDef status = HAL_OK;
 
+	status = HAL_ADC_Start(&hadc1);
+	if (status != HAL_OK) {
+		LOG_ERR("failed to start ADC");
+		goto error;
+	}
+
+	status = HAL_ADC_PollForConversion(&hadc1, 10);
+	if (status != HAL_OK) {
+		LOG_ERR("failed to poll ADC");
+		goto error;
+	}
+
+	uint32_t val = HAL_ADC_GetValue(&hadc1);
+	LOG_INF("ADC result: %d", val);
+
+	status = HAL_ADC_Stop(&hadc1);
+	if (status != HAL_OK) {
+		LOG_ERR("failed to stop ADC");
+		goto error;
+	}
+
+	return HAL_OK;
+	error: HAL_ADC_Stop(&hadc1);
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef task_print_ticks(void *self) {
+	UNUSED(self);
+
+	const uint32_t current_tick = HAL_GetTick();
+
+	LOG_INF("current tick=%u", current_tick);
+
+	return HAL_OK;
+}
 /* USER CODE END 4 */
 
 /**
