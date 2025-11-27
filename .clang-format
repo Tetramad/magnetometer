@@ -2,7 +2,7 @@ BasedOnStyle:  LLVM
 AllowShortEnumsOnASingleLine: false
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
 AllowShortLambdasOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
@@ -10,4 +10,5 @@ BinPackArguments: false
 BinPackParameters: false
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
+IndentWidth: 4
 ReflowComments:  false
