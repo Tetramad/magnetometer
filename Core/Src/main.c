@@ -48,6 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN PV */
@@ -61,6 +63,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 static void NotMX_MOD_Init(void);
 static HAL_StatusTypeDef Task_ModeUpdate(void);
@@ -95,17 +98,17 @@ int main(void) {
 	SystemClock_Config();
 
 	/* USER CODE BEGIN SysInit */
-
+	HAL_Delay(200);
 	/* USER CODE END SysInit */
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_ADC1_Init();
 	MX_TIM1_Init();
+	MX_I2C1_Init();
 	/* USER CODE BEGIN 2 */
 	NotMX_MOD_Init();
 
-	HAL_Delay(200);
 	LOG_INF("Magnetometer");
 	LOG_INF("H/W Rev.2");
 	LOG_INF("F/W Ver.1.1.0");
@@ -117,10 +120,10 @@ int main(void) {
 		const void *user_data;
 	};
 
-	struct tick_aligned_task tasks[] = { [0] = { .target_tick = 0,
-			.tick_alignment = 1000, .task = Task_ModeUpdate }, [1
-			] = { .target_tick = 0, .tick_alignment = 100, .task =
-					task_print_ticks } };
+	struct tick_aligned_task tasks[] =
+			{ [0] = { .target_tick = 0, .tick_alignment = 1000, .task =
+					Task_ModeUpdate }, [1 ] = { .target_tick = 0,
+					.tick_alignment = 1000, .task = task_print_ticks } };
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -263,6 +266,38 @@ static void MX_ADC1_Init(void) {
 }
 
 /**
+ * @brief I2C1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_I2C1_Init(void) {
+
+	/* USER CODE BEGIN I2C1_Init 0 */
+
+	/* USER CODE END I2C1_Init 0 */
+
+	/* USER CODE BEGIN I2C1_Init 1 */
+
+	/* USER CODE END I2C1_Init 1 */
+	hi2c1.Instance = I2C1;
+	hi2c1.Init.ClockSpeed = 100000;
+	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	hi2c1.Init.OwnAddress1 = 0;
+	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	hi2c1.Init.OwnAddress2 = 0;
+	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN I2C1_Init 2 */
+
+	/* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
  * @brief TIM1 Initialization Function
  * @param None
  * @retval None
@@ -317,28 +352,83 @@ static void MX_GPIO_Init(void) {
 	/* USER CODE END MX_GPIO_Init_1 */
 
 	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOH_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOD_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10,
-			GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, LCD_E_Pin | LCD_RS_Pin | LCD_RW_Pin, GPIO_PIN_SET);
 
-	/*Configure GPIO pins : PA8 PA9 PA10 */
-	GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10;
+	/*Configure GPIO pins : NOTUSED_Pin NOTUSEDC14_Pin NOTUSEDC15_Pin NOTUSEDC0_Pin
+	 NOTUSEDC1_Pin NOTUSEDC2_Pin NOTUSEDC3_Pin NOTUSEDC4_Pin
+	 NOTUSEDC5_Pin NOTUSEDC10_Pin NOTUSEDC11_Pin NOTUSEDC12_Pin */
+	GPIO_InitStruct.Pin = NOTUSED_Pin | NOTUSEDC14_Pin | NOTUSEDC15_Pin
+			| NOTUSEDC0_Pin | NOTUSEDC1_Pin | NOTUSEDC2_Pin | NOTUSEDC3_Pin
+			| NOTUSEDC4_Pin | NOTUSEDC5_Pin | NOTUSEDC10_Pin | NOTUSEDC11_Pin
+			| NOTUSEDC12_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : NOTUSEDH0_Pin NOTUSEDH1_Pin */
+	GPIO_InitStruct.Pin = NOTUSEDH0_Pin | NOTUSEDH1_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : NOTUSEDA0_Pin NOTUSEDA2_Pin NOTUSEDA3_Pin NOTUSEDA4_Pin
+	 NOTUSEDA5_Pin NOTUSEDA6_Pin NOTUSEDA7_Pin NOTUSEDA11_Pin
+	 NOTUSEDA12_Pin NOTUSEDA15_Pin */
+	GPIO_InitStruct.Pin = NOTUSEDA0_Pin | NOTUSEDA2_Pin | NOTUSEDA3_Pin
+			| NOTUSEDA4_Pin | NOTUSEDA5_Pin | NOTUSEDA6_Pin | NOTUSEDA7_Pin
+			| NOTUSEDA11_Pin | NOTUSEDA12_Pin | NOTUSEDA15_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : NOTUSEDB0_Pin NOTUSEDB1_Pin NOTUSEDB2_Pin NOTUSEDB10_Pin
+	 NOTUSEDB4_Pin NOTUSEDB8_Pin NOTUSEDB9_Pin */
+	GPIO_InitStruct.Pin = NOTUSEDB0_Pin | NOTUSEDB1_Pin | NOTUSEDB2_Pin
+			| NOTUSEDB10_Pin | NOTUSEDB4_Pin | NOTUSEDB8_Pin | NOTUSEDB9_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : LCD_E_Pin LCD_RS_Pin LCD_RW_Pin */
+	GPIO_InitStruct.Pin = LCD_E_Pin | LCD_RS_Pin | LCD_RW_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : PB5 */
-	GPIO_InitStruct.Pin = GPIO_PIN_5;
+	/*Configure GPIO pin : NOTUSEDD2_Pin */
+	GPIO_InitStruct.Pin = NOTUSEDD2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	HAL_GPIO_Init(NOTUSEDD2_GPIO_Port, &GPIO_InitStruct);
+
+	/*Configure GPIO pin : Sensor_INT_Pin */
+	GPIO_InitStruct.Pin = Sensor_INT_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	HAL_GPIO_Init(Sensor_INT_GPIO_Port, &GPIO_InitStruct);
 
 	/* USER CODE BEGIN MX_GPIO_Init_2 */
+	/*Configure GPIO pins : LCD_DB7_Pin LCD_DB6_Pin LCD_DB5_Pin LCD_DB4_Pin */
+	GPIO_InitStruct.Pin = LCD_DB7_Pin | LCD_DB6_Pin | LCD_DB5_Pin | LCD_DB4_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	/*Configure GPIO pins : LCD_DB3_Pin LCD_DB2_Pin LCD_DB1_Pin LCD_DB0_Pin */
+	GPIO_InitStruct.Pin = LCD_DB3_Pin | LCD_DB2_Pin | LCD_DB1_Pin | LCD_DB0_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 	/* USER CODE END MX_GPIO_Init_2 */
 }
 
@@ -389,10 +479,6 @@ HAL_StatusTypeDef Task_ModeUpdate(void) {
 }
 
 HAL_StatusTypeDef task_print_ticks(void) {
-	const uint32_t current_tick = HAL_GetTick();
-
-	LOG_INF("current tick=%u", current_tick);
-
 	return HAL_OK;
 }
 /* USER CODE END 4 */
