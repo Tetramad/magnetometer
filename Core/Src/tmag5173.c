@@ -47,10 +47,8 @@ int tmag5173_measure(void) {
     unsigned char buffer[10] = {0};
     const tick_t timeout = get_timeout_tick_ms(50);
     do {
-        err = standard_reg_read(SLAVE_ADDRESS,
-                                CONV_STATUS | 0x80U,
-                                &buffer[0],
-                                1U);
+        err = standard_reg_read(
+            SLAVE_ADDRESS, CONV_STATUS | 0x80U, &buffer[0], 1U);
         if (err < 0) {
             return err;
             return -__LINE__;
@@ -123,10 +121,8 @@ static int configure(void) {
     }
 
     buffer[0] = DEVICE_CONFIG_1;
-    err = standard_reg_read(SLAVE_ADDRESS,
-                            buffer[0],
-                            buffer + 1,
-                            MAG_OFFSET_CONFIG_2 + 1);
+    err = standard_reg_read(
+        SLAVE_ADDRESS, buffer[0], buffer + 1, MAG_OFFSET_CONFIG_2 + 1);
     if (err < 0) {
         return -__LINE__;
     }

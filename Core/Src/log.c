@@ -1,18 +1,12 @@
-/*
- * log.c
- *
- *      Author: Tetramad
- */
-
 #include <inttypes.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
 
 #include <stm32f4xx_hal.h>
 
@@ -24,130 +18,149 @@
 
 static char Log_LevelToCharacter(int level);
 
-static char buffer[256] = { 0 };
+static char buffer[256] = {0};
 
 int Log_Format(int level, const char *prefix, const char *fmt, ...) {
-	int err = 0;
-	va_list args;
-	const uint32_t ticks = HAL_GetTick();
+    int err = 0;
+    va_list args;
+    const uint32_t ticks = HAL_GetTick();
 
-	va_start(args, fmt);
-	err = vsnprintf(buffer, sizeof(buffer), fmt, args);
-	va_end(args);
-	if (err < 0) {
-		return -__LINE__;
-	}
+    va_start(args, fmt);
+    err = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    if (err < 0) {
+        return -__LINE__;
+    }
 
-	buffer[sizeof(buffer) - 1] = '\0';
-	err = printf("[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%s\n", ticks / 1000U,
-			ticks % 1000U, Log_LevelToCharacter(level), prefix ? prefix : "",
-			prefix ? ": " : "", buffer);
-	if (err < 0) {
-		return -__LINE__;
-	}
+    buffer[sizeof(buffer) - 1] = '\0';
+    err = printf("[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%s\n",
+                 ticks / 1000U,
+                 ticks % 1000U,
+                 Log_LevelToCharacter(level),
+                 prefix ? prefix : "",
+                 prefix ? ": " : "",
+                 buffer);
+    if (err < 0) {
+        return -__LINE__;
+    }
 
-	return 0;
+    return 0;
 }
 
 int LogString(int level, const char *prefix, const char *str) {
-	const uint32_t ticks = HAL_GetTick();
-	int err = 0;
+    const uint32_t ticks = HAL_GetTick();
+    int err = 0;
 
-	err = snprintf(buffer, sizeof(buffer),
-			"[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%s", ticks / 1000U,
-			ticks % 1000U, Log_LevelToCharacter(level), prefix ? prefix : "",
-			prefix ? ": " : "", str);
+    err = snprintf(buffer,
+                   sizeof(buffer),
+                   "[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%s",
+                   ticks / 1000U,
+                   ticks % 1000U,
+                   Log_LevelToCharacter(level),
+                   prefix ? prefix : "",
+                   prefix ? ": " : "",
+                   str);
 
-	puts(buffer);
+    puts(buffer);
 
-	return -(err < 0);
+    return -(err < 0);
 }
 
 int LogSigned(int level, const char *prefix, signed val) {
-	const uint32_t ticks = HAL_GetTick();
-	int err = 0;
+    const uint32_t ticks = HAL_GetTick();
+    int err = 0;
 
-	err = snprintf(buffer, sizeof(buffer),
-			"[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%d", ticks / 1000U,
-			ticks % 1000U, Log_LevelToCharacter(level), prefix ? prefix : "",
-			prefix ? ": " : "", val);
+    err = snprintf(buffer,
+                   sizeof(buffer),
+                   "[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%d",
+                   ticks / 1000U,
+                   ticks % 1000U,
+                   Log_LevelToCharacter(level),
+                   prefix ? prefix : "",
+                   prefix ? ": " : "",
+                   val);
 
-	puts(buffer);
+    puts(buffer);
 
-	return -(err < 0);
+    return -(err < 0);
 }
 
 int LogUnsigned(int level, const char *prefix, unsigned val) {
-	const uint32_t ticks = HAL_GetTick();
-	int err = 0;
+    const uint32_t ticks = HAL_GetTick();
+    int err = 0;
 
-	err = snprintf(buffer, sizeof(buffer),
-			"[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%u", ticks / 1000U,
-			ticks % 1000U, Log_LevelToCharacter(level), prefix ? prefix : "",
-			prefix ? ": " : "", val);
+    err = snprintf(buffer,
+                   sizeof(buffer),
+                   "[%06" PRIu32 ".%03" PRIu32 "] %c: %s%s%u",
+                   ticks / 1000U,
+                   ticks % 1000U,
+                   Log_LevelToCharacter(level),
+                   prefix ? prefix : "",
+                   prefix ? ": " : "",
+                   val);
 
-	puts(buffer);
+    puts(buffer);
 
-	return -(err < 0);
+    return -(err < 0);
 }
 
 int LogInfPuts(const char *str) {
-	return LogString(LOG_LEVEL_INF, INF_PREFIX, str);
+    return LogString(LOG_LEVEL_INF, INF_PREFIX, str);
 }
 
 int LogInfInt(int val, const char *name) {
-	char prefix[32] = INF_PREFIX;
-	size_t len = sizeof(INF_PREFIX) - 1;
+    char prefix[32] = INF_PREFIX;
+    size_t len = sizeof(INF_PREFIX) - 1;
 
-	strncat(prefix, name, sizeof(prefix) - 1 - len);
-	len = strlen(prefix);
-	strncat(prefix, ": ", sizeof(prefix) - 1 - len);
-	len = strlen(prefix);
+    strncat(prefix, name, sizeof(prefix) - 1 - len);
+    len = strlen(prefix);
+    strncat(prefix, ": ", sizeof(prefix) - 1 - len);
+    len = strlen(prefix);
 
-	if (len == 31) {
-		prefix[sizeof(prefix) - 1] = '\0';
-		prefix[sizeof(prefix) - 2] = ' ';
-		prefix[sizeof(prefix) - 3] = ':';
-		prefix[sizeof(prefix) - 4] = '.';
-		prefix[sizeof(prefix) - 5] = '.';
-		prefix[sizeof(prefix) - 6] = '.';
-	}
+    if (len == 31) {
+        prefix[sizeof(prefix) - 1] = '\0';
+        prefix[sizeof(prefix) - 2] = ' ';
+        prefix[sizeof(prefix) - 3] = ':';
+        prefix[sizeof(prefix) - 4] = '.';
+        prefix[sizeof(prefix) - 5] = '.';
+        prefix[sizeof(prefix) - 6] = '.';
+    }
 
-	return LogSigned(LOG_LEVEL_INF, prefix, val);
+    return LogSigned(LOG_LEVEL_INF, prefix, val);
 }
 
 int LogInfUnsigned(unsigned val, const char *name) {
-	char prefix[32] = INF_PREFIX;
-	size_t len = sizeof(INF_PREFIX) - 1;
+    char prefix[32] = INF_PREFIX;
+    size_t len = sizeof(INF_PREFIX) - 1;
 
-	strncat(prefix, name, sizeof(prefix) - 1 - len);
-	len = strlen(prefix);
-	strncat(prefix, ": ", sizeof(prefix) - 1 - len);
-	len = strlen(prefix);
+    strncat(prefix, name, sizeof(prefix) - 1 - len);
+    len = strlen(prefix);
+    strncat(prefix, ": ", sizeof(prefix) - 1 - len);
+    len = strlen(prefix);
 
-	if (len == 31) {
-		prefix[sizeof(prefix) - 1] = '\0';
-		prefix[sizeof(prefix) - 2] = ' ';
-		prefix[sizeof(prefix) - 3] = ':';
-		prefix[sizeof(prefix) - 4] = '.';
-		prefix[sizeof(prefix) - 5] = '.';
-		prefix[sizeof(prefix) - 6] = '.';
-	}
+    if (len == 31) {
+        prefix[sizeof(prefix) - 1] = '\0';
+        prefix[sizeof(prefix) - 2] = ' ';
+        prefix[sizeof(prefix) - 3] = ':';
+        prefix[sizeof(prefix) - 4] = '.';
+        prefix[sizeof(prefix) - 5] = '.';
+        prefix[sizeof(prefix) - 6] = '.';
+    }
 
-	return LogUnsigned(LOG_LEVEL_INF, prefix, val);
+    return LogUnsigned(LOG_LEVEL_INF, prefix, val);
 }
 
 static char Log_LevelToCharacter(int level) {
-	switch (level) {
-	case LOG_LEVEL_ERR:
-		return 'E';
-	case LOG_LEVEL_WRN:
-		return 'W';
-	case LOG_LEVEL_INF:
-		return 'I';
-	case LOG_LEVEL_DBG:
-		return 'D';
-	default:
-		return '?';
-	}
+    switch (level) {
+    case LOG_LEVEL_ERR:
+        return 'E';
+    case LOG_LEVEL_WRN:
+        return 'W';
+    case LOG_LEVEL_INF:
+        return 'I';
+    case LOG_LEVEL_DBG:
+        return 'D';
+    default:
+        return '?';
+    }
 }
