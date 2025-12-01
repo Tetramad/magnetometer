@@ -31,16 +31,16 @@ HAL_StatusTypeDef MOD_Init(MOD_HandleTypeDef *hmod) {
 	};
 
 	hmod->RangeBearing = (MOD_RangeTypeDef){
-		.begin = 1582U,
-		.end = 1251U
+		.begin = 1251U,
+		.end = 1582U
 	};
 
 	hmod->RangeSOH = (MOD_RangeTypeDef){
-		.begin = 1250U,
-		.end = 1046U
+		.begin = 1046U,
+		.end = 1250U
 	};
 
-	return HAL_ERROR;
+	return HAL_OK;
 }
 
 HAL_StatusTypeDef MOD_UpdateMode(MOD_HandleTypeDef *hmod) {
