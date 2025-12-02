@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -56,6 +57,17 @@ TIM_HandleTypeDef htim1;
 LOG_LEVEL_SET(LOG_LEVEL_INF);
 
 MOD_HandleTypeDef hmod;
+LIS2MDL_HandleTypeDef hlis2mdl;
+STC3100_HandleTypeDef hstc3100;
+
+float magnetic_flux_x_mgauss = 0.0f;
+float magnetic_flux_y_mgauss = 0.0f;
+float magnetic_flux_z_mgauss = 0.0f;
+float magnetic_flux_magnitude_mgauss = 0.0f;
+float magnetic_flux_bearing_degree = 0.0f;
+
+float gas_gauge_charge_used_uah = 0.0f;
+float gas_gauge_voltage_mv = 0.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -66,8 +78,11 @@ static void MX_TIM1_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 static void NotMX_MOD_Init(void);
+static void NotMX_LIS2MDL_Init(void);
+static void NotMX_STC3100_Init(void);
 static HAL_StatusTypeDef Task_ModeUpdate(void);
-static HAL_StatusTypeDef task_print_ticks(void);
+static HAL_StatusTypeDef Task_DataUpdate(void);
+static HAL_StatusTypeDef Task_SOHUpdate(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -76,9 +91,9 @@ static HAL_StatusTypeDef task_print_ticks(void);
 /* USER CODE END 0 */
 
 /**
- * @brief  The application entry point.
- * @retval int
- */
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void) {
 
     /* USER CODE BEGIN 1 */
@@ -108,24 +123,32 @@ int main(void) {
     MX_I2C1_Init();
     /* USER CODE BEGIN 2 */
     NotMX_MOD_Init();
+    UNUSED(NotMX_LIS2MDL_Init);
+    NotMX_STC3100_Init();
 
     LOG_INF("Magnetometer");
     LOG_INF("H/W Rev.2");
-    LOG_INF("F/W Ver.1.1.0");
+    LOG_INF("F/W Ver.1.2.0");
 
     struct tick_aligned_task {
         uint32_t target_tick;
         const uint32_t tick_alignment;
         HAL_StatusTypeDef (*const task)(void);
-        const void *user_data;
+        const char *const name;
     };
 
     struct tick_aligned_task tasks[] = {[0] = {.target_tick = 0,
                                                .tick_alignment = 1000,
-                                               .task = Task_ModeUpdate},
+                                               .task = Task_ModeUpdate,
+                                               .name = "Task_ModeUpdate"},
                                         [1] = {.target_tick = 0,
+                                               .tick_alignment = 100,
+                                               .task = Task_DataUpdate,
+                                               .name = "Task_DataUpdate"},
+                                        [2] = {.target_tick = 0,
                                                .tick_alignment = 1000,
-                                               .task = task_print_ticks}};
+                                               .task = Task_SOHUpdate,
+                                               .name = "Task_SOHUpdate"}};
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -154,8 +177,8 @@ int main(void) {
             if (task->task != NULL) {
                 status = task->task();
                 if (status != HAL_OK) {
-                    LOG_ERR("task(%p) returns error (%d)", task, status);
-                    goto error;
+                    LOG_ERR("task(%s) failed", task->name);
+                    task->target_tick = UINT32_MAX;
                 }
             }
             continue;
@@ -175,30 +198,25 @@ int main(void) {
 
         /* USER CODE BEGIN 3 */
     }
-
-error:
-    for (;;) {
-        __WFE();
-    }
     /* USER CODE END 3 */
 }
 
 /**
- * @brief System Clock Configuration
- * @retval None
- */
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void SystemClock_Config(void) {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
     /** Configure the main internal regulator output voltage
-	 */
+  */
     __HAL_RCC_PWR_CLK_ENABLE();
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
     /** Initializes the RCC Oscillators according to the specified parameters
-	 * in the RCC_OscInitTypeDef structure.
-	 */
+  * in the RCC_OscInitTypeDef structure.
+  */
     RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
     RCC_OscInitStruct.HSIState = RCC_HSI_ON;
     RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
@@ -208,7 +226,7 @@ void SystemClock_Config(void) {
     }
 
     /** Initializes the CPU, AHB and APB buses clocks
-	 */
+  */
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
                                   RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
@@ -222,10 +240,10 @@ void SystemClock_Config(void) {
 }
 
 /**
- * @brief ADC1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_ADC1_Init(void) {
 
     /* USER CODE BEGIN ADC1_Init 0 */
@@ -239,7 +257,7 @@ static void MX_ADC1_Init(void) {
     /* USER CODE END ADC1_Init 1 */
 
     /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-	 */
+  */
     hadc1.Instance = ADC1;
     hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
     hadc1.Init.Resolution = ADC_RESOLUTION_12B;
@@ -257,7 +275,7 @@ static void MX_ADC1_Init(void) {
     }
 
     /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
-	 */
+  */
     sConfig.Channel = ADC_CHANNEL_1;
     sConfig.Rank = 1;
     sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
@@ -270,10 +288,10 @@ static void MX_ADC1_Init(void) {
 }
 
 /**
- * @brief I2C1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_I2C1_Init(void) {
 
     /* USER CODE BEGIN I2C1_Init 0 */
@@ -284,7 +302,7 @@ static void MX_I2C1_Init(void) {
 
     /* USER CODE END I2C1_Init 1 */
     hi2c1.Instance = I2C1;
-    hi2c1.Init.ClockSpeed = 100000;
+    hi2c1.Init.ClockSpeed = 20000;
     hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
     hi2c1.Init.OwnAddress1 = 0;
     hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -301,10 +319,10 @@ static void MX_I2C1_Init(void) {
 }
 
 /**
- * @brief TIM1 Initialization Function
- * @param None
- * @retval None
- */
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_TIM1_Init(void) {
 
     /* USER CODE BEGIN TIM1_Init 0 */
@@ -343,10 +361,10 @@ static void MX_TIM1_Init(void) {
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
 static void MX_GPIO_Init(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     /* USER CODE BEGIN MX_GPIO_Init_1 */
@@ -364,8 +382,8 @@ static void MX_GPIO_Init(void) {
     HAL_GPIO_WritePin(GPIOA, LCD_E_Pin | LCD_RS_Pin | LCD_RW_Pin, GPIO_PIN_SET);
 
     /*Configure GPIO pins : NOTUSED_Pin NOTUSEDC14_Pin NOTUSEDC15_Pin NOTUSEDC0_Pin
-	 NOTUSEDC1_Pin NOTUSEDC2_Pin NOTUSEDC3_Pin NOTUSEDC4_Pin
-	 NOTUSEDC5_Pin NOTUSEDC10_Pin NOTUSEDC11_Pin NOTUSEDC12_Pin */
+                           NOTUSEDC1_Pin NOTUSEDC2_Pin NOTUSEDC3_Pin NOTUSEDC4_Pin
+                           NOTUSEDC5_Pin NOTUSEDC10_Pin NOTUSEDC11_Pin NOTUSEDC12_Pin */
     GPIO_InitStruct.Pin = NOTUSED_Pin | NOTUSEDC14_Pin | NOTUSEDC15_Pin |
                           NOTUSEDC0_Pin | NOTUSEDC1_Pin | NOTUSEDC2_Pin |
                           NOTUSEDC3_Pin | NOTUSEDC4_Pin | NOTUSEDC5_Pin |
@@ -381,8 +399,8 @@ static void MX_GPIO_Init(void) {
     HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
     /*Configure GPIO pins : NOTUSEDA0_Pin NOTUSEDA2_Pin NOTUSEDA3_Pin NOTUSEDA4_Pin
-	 NOTUSEDA5_Pin NOTUSEDA6_Pin NOTUSEDA7_Pin NOTUSEDA11_Pin
-	 NOTUSEDA12_Pin NOTUSEDA15_Pin */
+                           NOTUSEDA5_Pin NOTUSEDA6_Pin NOTUSEDA7_Pin NOTUSEDA11_Pin
+                           NOTUSEDA12_Pin NOTUSEDA15_Pin */
     GPIO_InitStruct.Pin = NOTUSEDA0_Pin | NOTUSEDA2_Pin | NOTUSEDA3_Pin |
                           NOTUSEDA4_Pin | NOTUSEDA5_Pin | NOTUSEDA6_Pin |
                           NOTUSEDA7_Pin | NOTUSEDA11_Pin | NOTUSEDA12_Pin |
@@ -392,7 +410,7 @@ static void MX_GPIO_Init(void) {
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /*Configure GPIO pins : NOTUSEDB0_Pin NOTUSEDB1_Pin NOTUSEDB2_Pin NOTUSEDB10_Pin
-	 NOTUSEDB4_Pin NOTUSEDB8_Pin NOTUSEDB9_Pin */
+                           NOTUSEDB4_Pin NOTUSEDB8_Pin NOTUSEDB9_Pin */
     GPIO_InitStruct.Pin = NOTUSEDB0_Pin | NOTUSEDB1_Pin | NOTUSEDB2_Pin |
                           NOTUSEDB10_Pin | NOTUSEDB4_Pin | NOTUSEDB8_Pin |
                           NOTUSEDB9_Pin;
@@ -445,6 +463,28 @@ static void NotMX_MOD_Init(void) {
     }
 }
 
+static void NotMX_LIS2MDL_Init(void) {
+    hlis2mdl.I2CInstance = &hi2c1;
+
+    if (LIS2MDL_Init(&hlis2mdl) != HAL_OK) {
+        LOG_ERR("failed to initialize LIS2MDL");
+        return;
+        /* TODO: fix */
+        Error_Handler();
+    }
+}
+
+static void NotMX_STC3100_Init(void) {
+    hstc3100.I2CInstance = &hi2c1;
+
+    if (STC3100_Init(&hstc3100) != HAL_OK) {
+        LOG_ERR("failed to initialize STC3100");
+        return;
+        /* TODO: fix */
+        Error_Handler();
+    }
+}
+
 HAL_StatusTypeDef Task_ModeUpdate(void) {
     HAL_StatusTypeDef status = HAL_OK;
 
@@ -482,15 +522,92 @@ HAL_StatusTypeDef Task_ModeUpdate(void) {
     }
 }
 
-HAL_StatusTypeDef task_print_ticks(void) {
+HAL_StatusTypeDef Task_DataUpdate(void) {
+    HAL_StatusTypeDef status = HAL_OK;
+
+    status = LIS2MDL_CheckSanity(&hlis2mdl);
+    if (status != HAL_OK) {
+        status = LIS2MDL_Init(&hlis2mdl);
+        if (status != HAL_OK) {
+            return HAL_ERROR;
+        }
+    }
+
+    status = LIS2MDL_StartSingleMode(&hlis2mdl);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    int data_ready = 0;
+    for (size_t i = 0; i < 3; ++i) {
+        status = LIS2MDL_IsDataReady(&hlis2mdl);
+        if (status == HAL_OK) {
+            data_ready = !0;
+            break;
+        }
+
+        HAL_Delay(10);
+    }
+
+    if (!data_ready) {
+        return HAL_ERROR;
+    }
+
+    const uint16_t x_code = LIS2MDL_OUTX(&hlis2mdl);
+    const uint16_t y_code = LIS2MDL_OUTY(&hlis2mdl);
+    const uint16_t z_code = LIS2MDL_OUTZ(&hlis2mdl);
+
+    const float x_mgauss = (float)(int16_t)x_code * 1.5f;
+    const float y_mgauss = (float)(int16_t)y_code * 1.5f;
+    const float z_mgauss = (float)(int16_t)z_code * 1.5f;
+
+    /*
+	 * TODO: should be tidy out
+	 */
+    const float magnitude_mgauss =
+        sqrtf(x_mgauss * x_mgauss + y_mgauss * y_mgauss + z_mgauss * z_mgauss);
+
+    const float bearing_degree = ({
+        const float theta1 = isgreater(fabsf(x_mgauss), fabsf(y_mgauss))
+                                 ? acosf(fabsf(x_mgauss) / magnitude_mgauss)
+                                 : asinf(fabsf(y_mgauss) / magnitude_mgauss);
+        const float theta0 =
+            theta1 + (float)M_PI * !!signbit(y_mgauss) +
+            (float)M_PI_2 * (!!signbit(x_mgauss) ^ !!signbit(y_mgauss));
+        (2.0f * (float)M_PI - theta0) * 180.0f / (float)M_PI;
+    });
+
+    magnetic_flux_x_mgauss = x_mgauss;
+    magnetic_flux_y_mgauss = y_mgauss;
+    magnetic_flux_z_mgauss = z_mgauss;
+    magnetic_flux_magnitude_mgauss = magnitude_mgauss;
+    magnetic_flux_bearing_degree = bearing_degree;
+
+    return HAL_OK;
+}
+
+static HAL_StatusTypeDef Task_SOHUpdate(void) {
+    HAL_StatusTypeDef status = HAL_OK;
+
+    status = STC3100_CheckSanity(&hstc3100);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    gas_gauge_charge_used_uah = STC3100_ChargeUsed_uAh(&hstc3100);
+    gas_gauge_voltage_mv = STC3100_Voltage_mV(&hstc3100);
+
+    LOG_INF("Charge Used: %d uAh", (int)gas_gauge_charge_used_uah);
+    LOG_INF("Battery Voltage: %d mV", (int)gas_gauge_voltage_mv);
+
     return HAL_OK;
 }
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
 void Error_Handler(void) {
     /* USER CODE BEGIN Error_Handler_Debug */
     /* User can add his own implementation to report the HAL error return state */

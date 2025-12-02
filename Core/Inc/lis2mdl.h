@@ -1,13 +1,23 @@
-/*
- * lis2mdl.h
- *
- *      Author: Tetramad
- */
+#ifndef LIS2MDL_H_
+#define LIS2MDL_H_
 
-#ifndef __LIS2MDL_H
-#define __LIS2MDL_H
+#include <stdint.h>
 
-int LIS2MDL_Init(void);
-int LIS2MDL_Measure(void);
+#include <stm32f4xx_hal.h>
 
-#endif /* __LIS2MDL_H */
+typedef struct {
+    I2C_HandleTypeDef *I2CInstance;
+    uint16_t DevAddress;
+    uint32_t ErrorCode;
+} LIS2MDL_HandleTypeDef;
+
+HAL_StatusTypeDef LIS2MDL_Init(LIS2MDL_HandleTypeDef *hlis2mdl);
+HAL_StatusTypeDef LIS2MDL_CheckSanity(LIS2MDL_HandleTypeDef *hlis2mdl);
+uint32_t LIS2MDL_GetError(LIS2MDL_HandleTypeDef *hlis2mdl);
+HAL_StatusTypeDef LIS2MDL_StartSingleMode(LIS2MDL_HandleTypeDef *hlis2mdl);
+HAL_StatusTypeDef LIS2MDL_IsDataReady(LIS2MDL_HandleTypeDef *hlis2mdl);
+uint16_t LIS2MDL_OUTX(LIS2MDL_HandleTypeDef *hlis2mdl);
+uint16_t LIS2MDL_OUTY(LIS2MDL_HandleTypeDef *hlis2mdl);
+uint16_t LIS2MDL_OUTZ(LIS2MDL_HandleTypeDef *hlis2mdl);
+
+#endif /* LIS2MDL_H_ */
