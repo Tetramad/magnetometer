@@ -39,6 +39,7 @@
                    "-isystemDrivers/STM32F4xx_HAL_Driver/Inc/Legacy",          \
                    "-isystemDrivers/CMSIS/Device/ST/STM32F4xx/Include",        \
                    "-isystemDrivers/CMSIS/Include",                            \
+                   "-isystem/usr/lib/arm-none-eabi/include",                   \
                    "-fstack-usage",                                            \
                    "--specs=nano.specs",                                       \
                    "-mfpu=fpv4-sp-d16",                                        \
@@ -49,21 +50,20 @@
 
 #define nob_ld(cmd) nob_cmd_append(cmd, "arm-none-eabi-gcc")
 #define nob_ld_flags(cmd)                                                      \
-    nob_cmd_append(                                                            \
-        cmd,                                                                   \
-        "-mcpu=cortex-m4",                                                     \
-        "-TSTM32F411RETX_FLASH.ld",       \
-        "--specs=nosys.specs",                                                 \
-        "-Wl,--gc-sections",                                                   \
-        "-static",                                                             \
-        "--specs=nano.specs",                                                  \
-        "-mfpu=fpv4-sp-d16",                                                   \
-        "-mfloat-abi=hard",                                                    \
-        "-mthumb",                                                             \
-        "-Wl,--start-group",                                                   \
-        "-lc",                                                                 \
-        "-lm",                                                                 \
-        "-Wl,--end-group")
+    nob_cmd_append(cmd,                                                        \
+                   "-mcpu=cortex-m4",                                          \
+                   "-TSTM32F411RETX_FLASH.ld",                                 \
+                   "--specs=nosys.specs",                                      \
+                   "-Wl,--gc-sections",                                        \
+                   "-static",                                                  \
+                   "--specs=nano.specs",                                       \
+                   "-mfpu=fpv4-sp-d16",                                        \
+                   "-mfloat-abi=hard",                                         \
+                   "-mthumb",                                                  \
+                   "-Wl,--start-group",                                        \
+                   "-lc",                                                      \
+                   "-lm",                                                      \
+                   "-Wl,--end-group")
 #define nob_ld_output(cmd, output_path) nob_cmd_append(cmd, "-o", (output_path))
 #define nob_ld_inputs(cmd, ...) nob_cmd_append(cmd, __VA_ARGS__)
 

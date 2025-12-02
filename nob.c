@@ -45,6 +45,8 @@ int main(int argc, char **argv) {
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc",
@@ -52,6 +54,7 @@ int main(int argc, char **argv) {
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc",
+        "Core/Src/syscalls",
         "Core/Src/sysmem",
         "Core/Src/system_stm32f4xx",
         "Core/Src/stm32f4xx_hal_msp",
@@ -88,6 +91,8 @@ int main(int argc, char **argv) {
         "Core/Src/main",
         "Core/Src/log",
         "Core/Src/mode_selector",
+        "Core/Src/lis2mdl",
+        "Core/Src/stc3100",
     };
 
     mark = temp_save();
@@ -116,6 +121,13 @@ int main(int argc, char **argv) {
     nob_ld_inputs(&cmd, "Debug/Core/Startup/startup_stm32f411retx.o");
 
     mark = temp_save();
+    for (const char **src_name = &src_names[0];
+         src_name < &src_names[sizeof(src_names) / sizeof(*src_names)];
+         ++src_name) {
+        const char *dst_path = temp_sprintf("%s/%s.o", "Debug", *src_name);
+        nob_ld_inputs(&cmd, dst_path);
+    }
+
     for (const char **syssrc_name = &syssrc_names[0];
          syssrc_name <
          &syssrc_names[sizeof(syssrc_names) / sizeof(*syssrc_names)];
@@ -124,19 +136,21 @@ int main(int argc, char **argv) {
         nob_ld_inputs(&cmd, dst_path);
     }
 
-    for (const char **src_name = &src_names[0];
-         src_name < &src_names[sizeof(src_names) / sizeof(*src_names)];
-         ++src_name) {
-        const size_t mark = temp_save();
-        const char *dst_path = temp_sprintf("%s/%s.o", "Debug", *src_name);
-        nob_ld_inputs(&cmd, dst_path);
-    }
-
     if (!cmd_run(&cmd)) {
         temp_rewind(mark);
         exit(EXIT_FAILURE);
     }
     temp_rewind(mark);
+
+    cmd_append(&cmd,
+               "arm-none-eabi-objcopy",
+               "-O",
+               "ihex",
+               "Debug/magnetometer.elf",
+               "Debug/magnetometer.hex");
+    if (!cmd_run(&cmd)) {
+        exit(EXIT_FAILURE);
+    }
 
     exit(EXIT_SUCCESS);
 }
