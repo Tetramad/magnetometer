@@ -31,6 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32f411_hal_ex.h"
 #include "mode_selector.h"
 #include "lis2mdl.h"
 #include "stc3100.h"

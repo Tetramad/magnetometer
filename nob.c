@@ -51,15 +51,16 @@ int main(int argc, char **argv) {
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex",
-        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim",
-        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc",
         "Core/Src/syscalls",
         "Core/Src/sysmem",
         "Core/Src/system_stm32f4xx",
         "Core/Src/stm32f4xx_hal_msp",
         "Core/Src/stm32f4xx_it",
-        "Core/Src/io",
+        "Core/Src/syscalls_ex",
+        "Core/Src/stm32f411_hal_ex",
     };
 
     mark = temp_save();

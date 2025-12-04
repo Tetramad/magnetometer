@@ -43,7 +43,7 @@ HAL_StatusTypeDef MOD_UpdateMode(MOD_HandleTypeDef *hmod) {
     }
 
     const uint32_t val = HAL_ADC_GetValue(hmod->ADCInstance);
-    LOG_INF("ADC result: %d", val);
+    LOG_DBG("ADC result: %d", val);
 
     status = HAL_ADC_Stop(hmod->ADCInstance);
     if (status != HAL_OK) {

@@ -1,18 +1,11 @@
-/*
- * io.c
- *
- *      Author: Tetramad
- */
-
 #include <stdint.h>
 #include <stdio.h>
+
 #include <stm32f4xx_hal.h>
 
-int __io_putchar(int ch) {
-    ITM_SendChar(ch > 0 ? ch : 0);
+#include <log.h>
 
-    return ch;
-}
+LOG_LEVEL_SET(LOG_LEVEL_DBG);
 
 void HAL_Delay(uint32_t Delay) {
     uint32_t tickstart = HAL_GetTick();
@@ -24,6 +17,14 @@ void HAL_Delay(uint32_t Delay) {
     }
 
     while ((HAL_GetTick() - tickstart) < wait) {
-        __WFE();
+        HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFE);
+    }
+}
+
+void HAL_DelayEx(uint32_t Delay) {
+    __IO uint32_t wait = Delay * (HAL_RCC_GetSysClockFreq() / 1000000U);
+    wait += 1;
+
+    while (wait--) {
     }
 }

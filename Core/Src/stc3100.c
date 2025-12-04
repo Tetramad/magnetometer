@@ -15,7 +15,7 @@ HAL_StatusTypeDef STC3100_Init(STC3100_HandleTypeDef *hstc3100) {
     uint8_t buffer[2] = {0};
 
     hstc3100->DevAddress = SLAVE_ADDRESS;
-    hstc3100->RShunt_ohm = 0.03f; /*< has to be changed */
+    hstc3100->RShunt_ohm = 0.0043f; /*< has to be changed */
 
     for (size_t i = 0; i < 5; ++i) {
         status = HAL_I2C_Mem_Read(hstc3100->I2CInstance,
