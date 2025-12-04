@@ -568,10 +568,7 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
 
     status = LIS2MDL_CheckSanity(&hlis2mdl);
     if (status != HAL_OK) {
-        status = LIS2MDL_Init(&hlis2mdl);
-        if (status != HAL_OK) {
-            return HAL_ERROR;
-        }
+        return HAL_ERROR;
     }
 
     status = LIS2MDL_StartSingleMode(&hlis2mdl);
