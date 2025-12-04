@@ -53,6 +53,8 @@ int main(int argc, char **argv) {
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim",
+        "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex",
         "Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc",
         "Core/Src/syscalls",
         "Core/Src/sysmem",
@@ -94,6 +96,8 @@ int main(int argc, char **argv) {
         "Core/Src/mode_selector",
         "Core/Src/lis2mdl",
         "Core/Src/stc3100",
+        "Core/Src/display",
+        "Core/Src/micro_wait",
     };
 
     mark = temp_save();

@@ -5,13 +5,8 @@
 
 #include <stm32f4xx_hal.h>
 
-#include <busy_wait.h>
-#include <input.h>
 #include <log.h>
 #include <macros.h>
-#include <work_queue.h>
-
-extern TIM_HandleTypeDef htim4;
 
 extern signed magneticFieldMagnitude_mT;
 extern signed magneticFieldXAxis_mT;
@@ -19,7 +14,6 @@ extern signed magneticFieldYAxis_mT;
 extern signed magneticFieldZAxis_mT;
 extern signed temperature_Celsius;
 
-static void Display_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 static int CheckBusyFlag(void);
 static void CommandInitial(uint8_t i);
 static void Command(uint8_t i);
@@ -34,13 +28,13 @@ int (*displayables[])(void *) = {
     DisplayMagMag, DisplayMagX, DisplayMagY, DisplayMagZ, DisplayTemperature};
 size_t displayablesIndex = 0U;
 
-Input_ContextTypeDef inputContext = {0};
-
 LOG_LEVEL_SET(LOG_LEVEL_INF);
+
+extern void BusyWait_ms(unsigned Delay);
+extern void BusyWait_us(unsigned Delay);
 
 int Display_Init(void *payload) {
     ARG_UNUSED(payload);
-    HAL_StatusTypeDef status = HAL_OK;
 
     const uint32_t tick = HAL_GetTick();
     if (tick < 40U) {
@@ -61,49 +55,9 @@ int Display_Init(void *payload) {
     Command(0x06);
     BusyWait_us(37);
 
-    status = HAL_TIM_RegisterCallback(&htim4,
-                                      HAL_TIM_PERIOD_ELAPSED_CB_ID,
-                                      Display_TIM_PeriodElapsedCallback);
-    if (status != HAL_OK) {
-        return -__LINE__;
-    }
-
-    status = HAL_TIM_Base_Start_IT(&htim4);
-    if (status != HAL_OK) {
-        return -__LINE__;
-    }
-
-    inputContext = Input_NewContext();
-
     LOG_INF("display: initialize succeeded");
 
     return 0;
-}
-
-static void Display_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    ARG_UNUSED(htim);
-    int err = 0;
-
-    err = Input_UpdateContext(&inputContext);
-    if (err < 0) {
-        LOG_ERR("display: failed to update input");
-    } else {
-        if (inputContext.left == 1 && inputContext.right != 1) {
-            displayablesIndex =
-                (displayablesIndex + (ARRAY_SIZE(displayables) - 1)) %
-                ARRAY_SIZE(displayables);
-        }
-        if (inputContext.right == 1 && inputContext.left != 1) {
-            displayablesIndex =
-                (displayablesIndex + 1) % ARRAY_SIZE(displayables);
-        }
-    }
-
-    err = WorkQueue_Enqueue(
-        WORK_PRIORITY_DEFAULT, displayables[displayablesIndex], NULL);
-    if (err < 0) {
-        LOG_ERR("display: failed to enqeue work");
-    }
 }
 
 static int CheckBusyFlag(void) {
@@ -160,7 +114,7 @@ static int CheckBusyFlag(void) {
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    return busy_flag;
+    return busy_flag == GPIO_PIN_SET;
 }
 
 static void CommandInitial(uint8_t i) {

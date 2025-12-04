@@ -53,12 +53,15 @@ I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
+TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN PV */
 LOG_LEVEL_SET(LOG_LEVEL_INF);
 
 MOD_HandleTypeDef hmod;
 LIS2MDL_HandleTypeDef hlis2mdl;
 STC3100_HandleTypeDef hstc3100;
+MICROWAIT_HandleTypeDef hmicrowait;
 
 float magnetic_flux_x_mgauss = 0.0f;
 float magnetic_flux_y_mgauss = 0.0f;
@@ -76,10 +79,12 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_RTC_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 static void NotMX_MOD_Init(void);
 static void NotMX_LIS2MDL_Init(void);
 static void NotMX_STC3100_Init(void);
+static void NotMX_MICROWAIT_Init(void);
 static HAL_StatusTypeDef Task_ModeUpdate(void);
 static HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void);
 static HAL_StatusTypeDef Task_SOHUpdate(void);
@@ -121,10 +126,12 @@ int main(void) {
     MX_ADC1_Init();
     MX_I2C1_Init();
     MX_RTC_Init();
+    MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
     NotMX_MOD_Init();
     NotMX_LIS2MDL_Init();
     NotMX_STC3100_Init();
+    NotMX_MICROWAIT_Init();
 
     LOG_INF("Magnetometer");
     LOG_INF("H/W Rev.2");
@@ -402,6 +409,47 @@ static void MX_RTC_Init(void) {
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void) {
+
+    /* USER CODE BEGIN TIM2_Init 0 */
+
+    /* USER CODE END TIM2_Init 0 */
+
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+    /* USER CODE BEGIN TIM2_Init 1 */
+
+    /* USER CODE END TIM2_Init 1 */
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler = 15;
+    htim2.Init.CounterMode = TIM_COUNTERMODE_DOWN;
+    htim2.Init.Period = 4294967295;
+    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
+        Error_Handler();
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
+        Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) !=
+        HAL_OK) {
+        Error_Handler();
+    }
+    /* USER CODE BEGIN TIM2_Init 2 */
+
+    /* USER CODE END TIM2_Init 2 */
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -520,6 +568,17 @@ static void NotMX_STC3100_Init(void) {
 
     if (STC3100_Init(&hstc3100) != HAL_OK) {
         LOG_ERR("failed to initialize STC3100");
+        return;
+        /* TODO: fix */
+        Error_Handler();
+    }
+}
+
+static void NotMX_MICROWAIT_Init(void) {
+    hmicrowait.TIMInstance = &htim2;
+
+    if (MICROWAIT_Init(&hmicrowait) != HAL_OK) {
+        LOG_ERR("failed to initialize MICROWAIT");
         return;
         /* TODO: fix */
         Error_Handler();
