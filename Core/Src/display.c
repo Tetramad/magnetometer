@@ -1,339 +1,269 @@
-#include <stddef.h>
+#include <assert.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 
 #include <stm32f4xx_hal.h>
 
+#include <display.h>
 #include <log.h>
 #include <macros.h>
+#include <micro_wait.h>
 
-extern signed magneticFieldMagnitude_mT;
-extern signed magneticFieldXAxis_mT;
-extern signed magneticFieldYAxis_mT;
-extern signed magneticFieldZAxis_mT;
-extern signed temperature_Celsius;
+/* LCD Driver ST7066U */
 
-static int CheckBusyFlag(void);
-static void CommandInitial(uint8_t i);
-static void Command(uint8_t i);
-static int DisplayString(const char *str);
-static int DisplayMagMag(void *payload);
-static int DisplayMagX(void *payload);
-static int DisplayMagY(void *payload);
-static int DisplayMagZ(void *payload);
-static int DisplayTemperature(void *payload);
+#define DISPLAY_RS_WRITE(Handle, PinState)                                     \
+    HAL_GPIO_WritePin(hdisplay->RS_Port, hdisplay->RS_Pin, PinState)
+#define DISPLAY_RW_WRITE(Handle, PinState)                                     \
+    HAL_GPIO_WritePin(hdisplay->RW_Port, hdisplay->RW_Pin, PinState)
+#define DISPLAY_E_WRITE(Handle, PinState)                                      \
+    HAL_GPIO_WritePin(hdisplay->E_Port, hdisplay->E_Pin, PinState)
+#define DISPLAY_DB_WRITE(Handle, N, PinState)                                  \
+    HAL_GPIO_WritePin((Handle)->DB_Port[(N)], (Handle)->DB_Pin[(N)], (PinState))
 
-int (*displayables[])(void *) = {
-    DisplayMagMag, DisplayMagX, DisplayMagY, DisplayMagZ, DisplayTemperature};
-size_t displayablesIndex = 0U;
+#define DISPLAY_DB_INIT(Handle, N, OpMode)                                     \
+    HAL_GPIO_Init((Handle)->DB_Port[(N)],                                      \
+                  &(GPIO_InitTypeDef){.Pin = (Handle)->DB_Pin[(N)],            \
+                                      .Mode = OpMode,                          \
+                                      .Pull = GPIO_NOPULL,                     \
+                                      .Speed = GPIO_SPEED_FREQ_LOW})
 
-LOG_LEVEL_SET(LOG_LEVEL_INF);
+static int CheckBusyFlag(DISPLAY_HandleTypeDef *hdisplay);
+static void CommandInitial(DISPLAY_HandleTypeDef *hdisplay, uint8_t i);
+static void Command(DISPLAY_HandleTypeDef *hdisplay, uint8_t i);
+static void Clear(DISPLAY_HandleTypeDef *hdisplay);
+static void Write(DISPLAY_HandleTypeDef *hdisplay, char c);
 
-extern void BusyWait_ms(unsigned Delay);
-extern void BusyWait_us(unsigned Delay);
+LOG_LEVEL_SET(LOG_LEVEL_DBG);
 
-int Display_Init(void *payload) {
-    ARG_UNUSED(payload);
+HAL_StatusTypeDef DISPLAY_Init(DISPLAY_HandleTypeDef *hdisplay) {
+    if (hdisplay->Init.BusMode != DISPLAY_BUS_MODE_4 &&
+        hdisplay->Init.BusMode != DISPLAY_BUS_MODE_8) {
+        return HAL_ERROR;
+    }
+
+    hdisplay->BusMode = hdisplay->Init.BusMode;
+
+    hdisplay->RS_Port = hdisplay->Init.RS_Port;
+    hdisplay->RS_Pin = hdisplay->Init.RS_Pin;
+
+    hdisplay->RW_Port = hdisplay->Init.RW_Port;
+    hdisplay->RW_Pin = hdisplay->Init.RW_Pin;
+
+    hdisplay->E_Port = hdisplay->Init.E_Port;
+    hdisplay->E_Pin = hdisplay->Init.E_Pin;
+
+    for (size_t i = 0; i < 4; ++i) {
+        hdisplay->DB_Port[i] = hdisplay->Init.DB_Port[i];
+        hdisplay->DB_Pin[i] = hdisplay->Init.DB_Pin[i];
+    }
+    if (hdisplay->BusMode == DISPLAY_BUS_MODE_8) {
+        for (size_t i = 4; i < 8; ++i) {
+            hdisplay->DB_Port[i] = hdisplay->Init.DB_Port[i];
+            hdisplay->DB_Pin[i] = hdisplay->Init.DB_Pin[i];
+        }
+    }
 
     const uint32_t tick = HAL_GetTick();
     if (tick < 40U) {
-        BusyWait_ms(40U - tick);
+        HAL_Delay(40U - tick);
     }
 
-    CommandInitial(0x30);
-    CommandInitial(0x30);
-    CommandInitial(0x30);
-    CommandInitial(0x20);
+    CommandInitial(hdisplay, 0x30);
+    CommandInitial(hdisplay, 0x30);
+    CommandInitial(hdisplay, 0x30);
+    CommandInitial(hdisplay, 0x20);
 
-    Command(0x28);
-    BusyWait_us(37);
-    Command(0x0C);
-    BusyWait_us(37);
-    Command(0x01);
-    BusyWait_us(1520);
-    Command(0x06);
-    BusyWait_us(37);
+    Command(hdisplay, 0x28);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
+    Command(hdisplay, 0x10);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
+    Command(hdisplay, 0x0C);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
+    Command(hdisplay, 0x06);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
+    Command(hdisplay, 0x01);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1520);
 
-    LOG_INF("display: initialize succeeded");
+    DISPLAY_Print(hdisplay, "%s", "Init...");
 
-    return 0;
+    return HAL_OK;
 }
 
-static int CheckBusyFlag(void) {
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
+HAL_StatusTypeDef
+DISPLAY_Print(DISPLAY_HandleTypeDef *hdisplay, const char *format, ...) {
+    char buffer[32] = "";
+    va_list args;
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    va_start(args, format);
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    const size_t len = strlen(buffer);
+    const size_t maxlen = len > 8 ? 8 : len;
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-    BusyWait_us(0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
+    Clear(hdisplay);
+    for (size_t i = 0; i < maxlen; ++i) {
+        Write(hdisplay, buffer[i]);
+    }
 
+    return HAL_OK;
+}
+
+static int CheckBusyFlag(DISPLAY_HandleTypeDef *hdisplay) {
+    DISPLAY_DB_WRITE(hdisplay, 0, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 1, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 2, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 3, GPIO_PIN_RESET);
+
+    DISPLAY_DB_INIT(hdisplay, 0, GPIO_MODE_INPUT);
+    DISPLAY_DB_INIT(hdisplay, 1, GPIO_MODE_INPUT);
+    DISPLAY_DB_INIT(hdisplay, 2, GPIO_MODE_INPUT);
+    DISPLAY_DB_INIT(hdisplay, 3, GPIO_MODE_INPUT);
+
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 0);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+
+    /* TODO: extract out HAL_GPIO_* */
     const GPIO_PinState busy_flag = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7);
 
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-    BusyWait_us(0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 0);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
 
     __NOP();
 
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 0, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 1, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 2, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 3, GPIO_PIN_RESET);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    DISPLAY_DB_INIT(hdisplay, 0, GPIO_MODE_OUTPUT_PP);
+    DISPLAY_DB_INIT(hdisplay, 1, GPIO_MODE_OUTPUT_PP);
+    DISPLAY_DB_INIT(hdisplay, 2, GPIO_MODE_OUTPUT_PP);
+    DISPLAY_DB_INIT(hdisplay, 3, GPIO_MODE_OUTPUT_PP);
 
     return busy_flag == GPIO_PIN_SET;
 }
 
-static void CommandInitial(uint8_t i) {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-    BusyWait_us(0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_4, i & (1 << 4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_5, i & (1 << 5) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_6, i & (1 << 6) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_7, i & (1 << 7) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+static void CommandInitial(DISPLAY_HandleTypeDef *hdisplay, uint8_t i) {
+    assert(GPIO_PIN_SET == 1 && GPIO_PIN_RESET == 0);
 
-    BusyWait_us(2);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 0);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_DB_WRITE(hdisplay, 0, !!(i & (1 << 4)));
+    DISPLAY_DB_WRITE(hdisplay, 1, !!(i & (1 << 5)));
+    DISPLAY_DB_WRITE(hdisplay, 2, !!(i & (1 << 6)));
+    DISPLAY_DB_WRITE(hdisplay, 3, !!(i & (1 << 7)));
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
-    BusyWait_us(160);
+    DISPLAY_DB_WRITE(hdisplay, 0, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 1, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 2, GPIO_PIN_RESET);
+    DISPLAY_DB_WRITE(hdisplay, 3, GPIO_PIN_RESET);
+
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 160);
 }
 
-static void Command(uint8_t i) {
-    for (size_t _ = 0; _ < 8 && CheckBusyFlag(); ++_) {
-        BusyWait_us(37);
+static void Command(DISPLAY_HandleTypeDef *hdisplay, uint8_t i) {
+    assert(GPIO_PIN_SET == 1 && GPIO_PIN_RESET == 0);
+
+    for (size_t _ = 0; _ < 8 && CheckBusyFlag(hdisplay); ++_) {
+        MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
     }
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-    BusyWait_us(0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_4, i & (1 << 4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_5, i & (1 << 5) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_6, i & (1 << 6) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_7, i & (1 << 7) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 0);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_DB_WRITE(hdisplay, 0, !!(i & (1 << 4)));
+    DISPLAY_DB_WRITE(hdisplay, 1, !!(i & (1 << 5)));
+    DISPLAY_DB_WRITE(hdisplay, 2, !!(i & (1 << 6)));
+    DISPLAY_DB_WRITE(hdisplay, 3, !!(i & (1 << 7)));
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
     i <<= 4;
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_4, i & (1 << 4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_5, i & (1 << 5) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_6, i & (1 << 6) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_7, i & (1 << 7) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_DB_WRITE(hdisplay, 0, !!(i & (1 << 4)));
+    DISPLAY_DB_WRITE(hdisplay, 1, !!(i & (1 << 5)));
+    DISPLAY_DB_WRITE(hdisplay, 2, !!(i & (1 << 6)));
+    DISPLAY_DB_WRITE(hdisplay, 3, !!(i & (1 << 7)));
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 }
 
-static void write(char c) {
-    for (size_t i = 0; i < 8 && CheckBusyFlag(); ++i) {
-        BusyWait_us(37);
+static void Write(DISPLAY_HandleTypeDef *hdisplay, char c) {
+    assert(GPIO_PIN_SET == 1 && GPIO_PIN_RESET == 0);
+
+    for (size_t i = 0; i < 8 && CheckBusyFlag(hdisplay); ++i) {
+        MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 37);
     }
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
-    BusyWait_us(0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_4, c & (1 << 4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_5, c & (1 << 5) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_6, c & (1 << 6) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_7, c & (1 << 7) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_SET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_RESET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 0);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_DB_WRITE(hdisplay, 0, !!(c & (1 << 4)));
+    DISPLAY_DB_WRITE(hdisplay, 1, !!(c & (1 << 5)));
+    DISPLAY_DB_WRITE(hdisplay, 2, !!(c & (1 << 6)));
+    DISPLAY_DB_WRITE(hdisplay, 3, !!(c & (1 << 7)));
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
     c <<= 4;
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_4, c & (1 << 4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_5, c & (1 << 5) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_6, c & (1 << 6) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(
-        GPIOA, GPIO_PIN_7, c & (1 << 7) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    BusyWait_us(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_DB_WRITE(hdisplay, 0, !!(c & (1 << 4)));
+    DISPLAY_DB_WRITE(hdisplay, 1, !!(c & (1 << 5)));
+    DISPLAY_DB_WRITE(hdisplay, 2, !!(c & (1 << 6)));
+    DISPLAY_DB_WRITE(hdisplay, 3, !!(c & (1 << 7)));
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1);
+    DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
 
-    BusyWait_us(2);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 2);
 
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+    DISPLAY_RS_WRITE(hdisplay, GPIO_PIN_RESET);
+    DISPLAY_RW_WRITE(hdisplay, GPIO_PIN_RESET);
 }
 
-static int DisplayString(const char *str) {
-    Command(0x01);
-    BusyWait_us(1520);
-    Command(0x80);
-    BusyWait_us(37);
-    for (size_t i = 0; str[i]; ++i) {
-        write(str[i]);
-        BusyWait_us(37);
-    }
-
-    return 0;
-}
-
-static int DisplayMagMag(void *payload) {
-    ARG_UNUSED(payload);
-
-    char buffer[32] = "";
-
-    if (magneticFieldMagnitude_mT > 999999 ||
-        magneticFieldMagnitude_mT < -999999) {
-        sprintf(buffer, "M%cOvrflw", magneticFieldMagnitude_mT > 0 ? '+' : '-');
-    } else {
-        sprintf(buffer,
-                "M% 4d.%03d",
-                magneticFieldMagnitude_mT / 1000,
-                abs(magneticFieldMagnitude_mT % 1000));
-    }
-
-    DisplayString(buffer);
-
-    return 0;
-}
-
-static int DisplayMagX(void *payload) {
-    ARG_UNUSED(payload);
-
-    char buffer[32] = "";
-
-    if (magneticFieldXAxis_mT > 99999 || magneticFieldXAxis_mT < -99999) {
-        sprintf(buffer, "X%cOvrflw", magneticFieldXAxis_mT > 0 ? '+' : '-');
-    } else {
-        sprintf(buffer,
-                "X% 3d.%03d",
-                magneticFieldXAxis_mT / 1000,
-                abs(magneticFieldXAxis_mT % 1000));
-    }
-
-    DisplayString(buffer);
-
-    return 0;
-}
-
-static int DisplayMagY(void *payload) {
-    ARG_UNUSED(payload);
-
-    char buffer[32] = "";
-
-    if (magneticFieldYAxis_mT > 99999 || magneticFieldYAxis_mT < -99999) {
-        sprintf(buffer, "Y%cOvrflw", magneticFieldYAxis_mT > 0 ? '+' : '-');
-    } else {
-        sprintf(buffer,
-                "Y% 3d.%03d",
-                magneticFieldYAxis_mT / 1000,
-                abs(magneticFieldYAxis_mT % 1000));
-    }
-
-    DisplayString(buffer);
-
-    return 0;
-}
-
-static int DisplayMagZ(void *payload) {
-    ARG_UNUSED(payload);
-
-    char buffer[32] = "";
-
-    if (magneticFieldZAxis_mT > 99999 || magneticFieldZAxis_mT < -99999) {
-        sprintf(buffer, "Z%cOvrflw", magneticFieldZAxis_mT > 0 ? '+' : '-');
-    } else {
-        sprintf(buffer,
-                "Z% 3d.%03d",
-                magneticFieldZAxis_mT / 1000,
-                abs(magneticFieldZAxis_mT % 1000));
-    }
-
-    DisplayString(buffer);
-
-    return 0;
-}
-
-static int DisplayTemperature(void *payload) {
-    ARG_UNUSED(payload);
-
-    char buffer[32] = "";
-
-    if (temperature_Celsius > 999999 || temperature_Celsius < -999999) {
-        sprintf(buffer, "T%cOvrflw", temperature_Celsius > 0 ? '+' : '-');
-    } else {
-        sprintf(buffer,
-                "T% 4d.%02d",
-                temperature_Celsius / 1000,
-                abs(temperature_Celsius % 1000) / 10);
-    }
-
-    DisplayString(buffer);
-
-    return 0;
+static void Clear(DISPLAY_HandleTypeDef *hdisplay) {
+    Command(hdisplay, 0x01);
+    MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1520);
 }

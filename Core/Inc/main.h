@@ -36,6 +36,7 @@ extern "C" {
 #include "lis2mdl.h"
 #include "stc3100.h"
 #include "micro_wait.h"
+#include "display.h"
 
 /* USER CODE END Includes */
 
@@ -124,10 +125,10 @@ void Error_Handler(void);
 #define LCD_DB0_GPIO_Port GPIOC
 #define LCD_E_Pin GPIO_PIN_8
 #define LCD_E_GPIO_Port GPIOA
-#define LCD_RS_Pin GPIO_PIN_9
-#define LCD_RS_GPIO_Port GPIOA
-#define LCD_RW_Pin GPIO_PIN_10
+#define LCD_RW_Pin GPIO_PIN_9
 #define LCD_RW_GPIO_Port GPIOA
+#define LCD_RS_Pin GPIO_PIN_10
+#define LCD_RS_GPIO_Port GPIOA
 #define NOTUSEDA11_Pin GPIO_PIN_11
 #define NOTUSEDA11_GPIO_Port GPIOA
 #define NOTUSEDA12_Pin GPIO_PIN_12

@@ -62,6 +62,9 @@ MOD_HandleTypeDef hmod;
 LIS2MDL_HandleTypeDef hlis2mdl;
 STC3100_HandleTypeDef hstc3100;
 MICROWAIT_HandleTypeDef hmicrowait;
+DISPLAY_HandleTypeDef hdisplay;
+
+MOD_ModeStateTypedef mode_state = MOD_MODE_STATE_UNKNOWN;
 
 float magnetic_flux_x_mgauss = 0.0f;
 float magnetic_flux_y_mgauss = 0.0f;
@@ -85,9 +88,11 @@ static void NotMX_MOD_Init(void);
 static void NotMX_LIS2MDL_Init(void);
 static void NotMX_STC3100_Init(void);
 static void NotMX_MICROWAIT_Init(void);
+static void NotMX_DISPLAY_Init(void);
 static HAL_StatusTypeDef Task_ModeUpdate(void);
 static HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void);
 static HAL_StatusTypeDef Task_SOHUpdate(void);
+static HAL_StatusTypeDef Task_DisplayUpdate(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -118,7 +123,7 @@ int main(void) {
     SystemClock_Config();
 
     /* USER CODE BEGIN SysInit */
-    HAL_Delay(200);
+    HAL_Delay(50);
     /* USER CODE END SysInit */
 
     /* Initialize all configured peripherals */
@@ -128,14 +133,21 @@ int main(void) {
     MX_RTC_Init();
     MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
+    HAL_Delay(50);
+
     NotMX_MOD_Init();
     NotMX_LIS2MDL_Init();
     NotMX_STC3100_Init();
     NotMX_MICROWAIT_Init();
+    NotMX_DISPLAY_Init();
+
+    HAL_Delay(50);
 
     LOG_INF("Magnetometer");
     LOG_INF("H/W Rev.2");
     LOG_INF("F/W Ver.1.2.0");
+
+    HAL_Delay(50);
 
     struct tick_aligned_task {
         uint32_t target_tick;
@@ -150,17 +162,17 @@ int main(void) {
                .task = Task_ModeUpdate,
                .name = "ModeUpdate"},
         [1] = {.target_tick = 0,
-               .tick_alignment = 100,
+               .tick_alignment = 250,
                .task = Task_MagneticMeasurementUpdate,
                .name = "MagneticMeasurementUpdate"},
         [2] = {.target_tick = 0,
                .tick_alignment = 1000,
                .task = Task_SOHUpdate,
                .name = "SOHUpdate"},
-        /*[3] = {.target_tick = 0,*/
-        /*       .tick_alignment = 100,*/
-        /*       .task = NULL,*/
-        /*       .name = "DisplayUpdate"},*/
+        [3] = {.target_tick = 0,
+               .tick_alignment = 250,
+               .task = Task_DisplayUpdate,
+               .name = "DisplayUpdate"},
     };
     /* USER CODE END 2 */
 
@@ -404,7 +416,9 @@ static void MX_RTC_Init(void) {
         Error_Handler();
     }
     /* USER CODE BEGIN RTC_Init 2 */
-
+    if (HAL_RTCEx_DeactivateWakeUpTimer(&hrtc) != HAL_OK) {
+        Error_Handler();
+    }
     /* USER CODE END RTC_Init 2 */
 }
 
@@ -468,7 +482,7 @@ static void MX_GPIO_Init(void) {
     __HAL_RCC_GPIOD_CLK_ENABLE();
 
     /*Configure GPIO pin Output Level */
-    HAL_GPIO_WritePin(GPIOA, LCD_E_Pin | LCD_RS_Pin | LCD_RW_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, LCD_E_Pin | LCD_RW_Pin | LCD_RS_Pin, GPIO_PIN_SET);
 
     /*Configure GPIO pins : NOTUSED_Pin NOTUSEDC14_Pin NOTUSEDC15_Pin NOTUSEDC0_Pin
                            NOTUSEDC1_Pin NOTUSEDC2_Pin NOTUSEDC3_Pin NOTUSEDC4_Pin
@@ -507,10 +521,10 @@ static void MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : LCD_E_Pin LCD_RS_Pin LCD_RW_Pin */
-    GPIO_InitStruct.Pin = LCD_E_Pin | LCD_RS_Pin | LCD_RW_Pin;
+    /*Configure GPIO pins : LCD_E_Pin LCD_RW_Pin LCD_RS_Pin */
+    GPIO_InitStruct.Pin = LCD_E_Pin | LCD_RW_Pin | LCD_RS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
@@ -585,6 +599,42 @@ static void NotMX_MICROWAIT_Init(void) {
     }
 }
 
+static void NotMX_DISPLAY_Init(void) {
+    hdisplay.MICROWAITInstance = &hmicrowait;
+    hdisplay.Init.BusMode = DISPLAY_BUS_MODE_4;
+
+    hdisplay.Init.RS_Port = LCD_RS_GPIO_Port;
+    hdisplay.Init.RS_Pin = LCD_RS_Pin;
+    hdisplay.Init.RW_Port = LCD_RW_GPIO_Port;
+    hdisplay.Init.RW_Pin = LCD_RW_Pin;
+    hdisplay.Init.E_Port = LCD_E_GPIO_Port;
+    hdisplay.Init.E_Pin = LCD_E_Pin;
+
+    hdisplay.Init.DB_Port[0] = LCD_DB0_GPIO_Port;
+    hdisplay.Init.DB_Pin[0] = LCD_DB0_Pin;
+    hdisplay.Init.DB_Port[1] = LCD_DB1_GPIO_Port;
+    hdisplay.Init.DB_Pin[1] = LCD_DB1_Pin;
+    hdisplay.Init.DB_Port[2] = LCD_DB2_GPIO_Port;
+    hdisplay.Init.DB_Pin[2] = LCD_DB2_Pin;
+    hdisplay.Init.DB_Port[3] = LCD_DB3_GPIO_Port;
+    hdisplay.Init.DB_Pin[3] = LCD_DB3_Pin;
+    hdisplay.Init.DB_Port[4] = LCD_DB4_GPIO_Port;
+    hdisplay.Init.DB_Pin[4] = LCD_DB4_Pin;
+    hdisplay.Init.DB_Port[5] = LCD_DB5_GPIO_Port;
+    hdisplay.Init.DB_Pin[5] = LCD_DB5_Pin;
+    hdisplay.Init.DB_Port[6] = LCD_DB6_GPIO_Port;
+    hdisplay.Init.DB_Pin[6] = LCD_DB6_Pin;
+    hdisplay.Init.DB_Port[7] = LCD_DB7_GPIO_Port;
+    hdisplay.Init.DB_Pin[7] = LCD_DB7_Pin;
+
+    if (DISPLAY_Init(&hdisplay) != HAL_OK) {
+        LOG_ERR("failed to initialize DISPLAY");
+        return;
+        /* TODO: fix */
+        Error_Handler();
+    }
+}
+
 HAL_StatusTypeDef Task_ModeUpdate(void) {
     HAL_StatusTypeDef status = HAL_OK;
 
@@ -594,30 +644,30 @@ HAL_StatusTypeDef Task_ModeUpdate(void) {
         return HAL_ERROR;
     }
 
-    const MOD_ModeStateTypedef mode_state = MOD_ReadMode(&hmod);
+    mode_state = MOD_ReadMode(&hmod);
 
     switch (mode_state) {
     default:
     case MOD_MODE_STATE_UNKNOWN:
-        LOG_INF("Mode [Unknown]");
+        LOG_DBG("Mode [Unknown]");
         return HAL_OK;
     case MOD_MODE_STATE_X:
-        LOG_INF("Mode [X]");
+        LOG_DBG("Mode [X]");
         return HAL_OK;
     case MOD_MODE_STATE_Y:
-        LOG_INF("Mode [Y]");
+        LOG_DBG("Mode [Y]");
         return HAL_OK;
     case MOD_MODE_STATE_Z:
-        LOG_INF("Mode [Z]");
+        LOG_DBG("Mode [Z]");
         return HAL_OK;
     case MOD_MODE_STATE_MAGNITUDE:
-        LOG_INF("Mode [Magnitude]");
+        LOG_DBG("Mode [Magnitude]");
         return HAL_OK;
     case MOD_MODE_STATE_BEARING:
-        LOG_INF("Mode [Bearing]");
+        LOG_DBG("Mode [Bearing]");
         return HAL_OK;
     case MOD_MODE_STATE_SOH:
-        LOG_INF("Mode [SOH]");
+        LOG_DBG("Mode [SOH]");
         return HAL_OK;
     }
 }
@@ -698,6 +748,29 @@ static HAL_StatusTypeDef Task_SOHUpdate(void) {
     LOG_INF("Battery Voltage: %d mV", (int)gas_gauge_voltage_mv);
 
     return HAL_OK;
+}
+
+static HAL_StatusTypeDef Task_DisplayUpdate(void) {
+    switch (mode_state) {
+    default:
+    case MOD_MODE_STATE_UNKNOWN:
+        return DISPLAY_Print(&hdisplay, "%s", "Unknown");
+    case MOD_MODE_STATE_X:
+        return DISPLAY_Print(&hdisplay, "X %6d", (int)magnetic_flux_x_mgauss);
+    case MOD_MODE_STATE_Y:
+        return DISPLAY_Print(&hdisplay, "Y %6d", (int)magnetic_flux_y_mgauss);
+    case MOD_MODE_STATE_Z:
+        return DISPLAY_Print(&hdisplay, "Z %6d", (int)magnetic_flux_z_mgauss);
+    case MOD_MODE_STATE_MAGNITUDE:
+        return DISPLAY_Print(
+            &hdisplay, "M %6d", (int)magnetic_flux_magnitude_mgauss);
+    case MOD_MODE_STATE_BEARING:
+        return DISPLAY_Print(
+            &hdisplay, "B %6d", (int)magnetic_flux_bearing_degree);
+    case MOD_MODE_STATE_SOH:
+        return DISPLAY_Print(
+            &hdisplay, "S %6d", (int)gas_gauge_charge_used_uah);
+    }
 }
 /* USER CODE END 4 */
 

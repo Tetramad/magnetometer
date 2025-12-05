@@ -121,8 +121,8 @@
 					</folderInfo>
 					<fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.1222476557.467105801" name="syscalls_ex.c" rcbsApplicability="disable" resourcePath="Core/Src/syscalls_ex.c" toolsToInvoke="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.41938606.1300321632">
 						<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.41938606.1300321632" name="MCU/MPU GCC Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.41938606">
-							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum.10659241" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum" value="false" valueType="boolean"/>
-							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.conversion.1892190037" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.conversion" value="false" valueType="boolean"/>
+							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum.10659241" name="Warn if switch is used on an enum type and the switch statement lacks case for some enumerations (-Wswitch-enum)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.w_switch_enum" value="false" valueType="boolean"/>
+							<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.conversion.1892190037" name="Warn for implicit conversions (-Wconversion)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.warnings.conversion" value="false" valueType="boolean"/>
 							<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.130122152" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c"/>
 						</tool>
 					</fileInfo>
@@ -134,7 +134,7 @@
 						</tool>
 					</fileInfo>
 					<sourceEntries>
-						<entry excluding="Src/work_queue.c|Src/sensor.c|Src/input.c|Src/display.c|Src/busy_wait.c|Src/sleep_and_wait.c|Src/tmag5173.c|Src/tim3.c|Src/main_old.c|Src/i2c.c|Src/gpio.c|Src/display_internal.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Src/work_queue.c|Src/sensor.c|Src/input.c|Src/busy_wait.c|Src/sleep_and_wait.c|Src/tmag5173.c|Src/tim3.c|Src/main_old.c|Src/i2c.c|Src/gpio.c|Src/display_internal.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 					</sourceEntries>
 				</configuration>
@@ -210,7 +210,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="Src/work_queue.c|Src/sensor.c|Src/input.c|Src/display.c|Src/busy_wait.c|Src/sleep_and_wait.c|Src/tmag5173.c|Src/tim3.c|Src/main_old.c|Src/i2c.c|Src/gpio.c|Src/display_internal.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
+						<entry excluding="Src/work_queue.c|Src/sensor.c|Src/input.c|Src/busy_wait.c|Src/sleep_and_wait.c|Src/tmag5173.c|Src/tim3.c|Src/main_old.c|Src/i2c.c|Src/gpio.c|Src/display_internal.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Core"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="Drivers"/>
 					</sourceEntries>
 				</configuration>

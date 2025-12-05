@@ -4,6 +4,8 @@
 
 #include <micro_wait.h>
 
+/* TODO: maybe change name to Micro Delay? */
+
 HAL_StatusTypeDef MICROWAIT_Init(MICROWAIT_HandleTypeDef *hmicrowait) {
     UNUSED(hmicrowait);
 
