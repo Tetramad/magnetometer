@@ -38,7 +38,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define MAGNETIC_FLUX_OFFSET_X ((int16_t)(-26))
+#define MAGNETIC_FLUX_OFFSET_Y ((int16_t)(256))
+#define MAGNETIC_FLUX_OFFSET_Z ((int16_t)(10))
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -704,9 +706,18 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
     const uint16_t y_code = LIS2MDL_OUTY(&hlis2mdl);
     const uint16_t z_code = LIS2MDL_OUTZ(&hlis2mdl);
 
-    const float x_mgauss = (float)(int16_t)x_code * 1.5f;
-    const float y_mgauss = (float)(int16_t)y_code * 1.5f;
-    const float z_mgauss = (float)(int16_t)z_code * 1.5f;
+    LOG_LEVEL_SET(LOG_LEVEL_DBG);
+
+    const float x_mgauss =
+        (float)((int16_t)x_code - MAGNETIC_FLUX_OFFSET_X) * 1.5f;
+    const float y_mgauss =
+        (float)((int16_t)y_code - MAGNETIC_FLUX_OFFSET_Y) * 1.5f;
+    const float z_mgauss =
+        (float)((int16_t)z_code - MAGNETIC_FLUX_OFFSET_Z) * 1.5f;
+
+    LOG_DBG("MAG X: %d", (int16_t)(x_mgauss / 1.5f));
+    LOG_DBG("MAG Y: %d", (int16_t)(y_mgauss / 1.5f));
+    LOG_DBG("MAG Z: %d", (int16_t)(z_mgauss / 1.5f));
 
     /*
 	 * TODO: should be tidy out
@@ -714,6 +725,9 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
     const float magnitude_mgauss =
         sqrtf(x_mgauss * x_mgauss + y_mgauss * y_mgauss + z_mgauss * z_mgauss);
 
+    /*
+     * TODO: something wrong
+     */
     const float bearing_degree = ({
         const float theta1 = isgreater(fabsf(x_mgauss), fabsf(y_mgauss))
                                  ? acosf(fabsf(x_mgauss) / magnitude_mgauss)
@@ -744,8 +758,8 @@ static HAL_StatusTypeDef Task_SOHUpdate(void) {
     gas_gauge_charge_used_uah = STC3100_ChargeUsed_uAh(&hstc3100);
     gas_gauge_voltage_mv = STC3100_Voltage_mV(&hstc3100);
 
-    LOG_INF("Charge Used: %d uAh", (int)gas_gauge_charge_used_uah);
-    LOG_INF("Battery Voltage: %d mV", (int)gas_gauge_voltage_mv);
+    LOG_DBG("Charge Used: %d uAh", (int)gas_gauge_charge_used_uah);
+    LOG_DBG("Battery Voltage: %d mV", (int)gas_gauge_voltage_mv);
 
     return HAL_OK;
 }

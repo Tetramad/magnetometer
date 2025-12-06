@@ -17,7 +17,7 @@ HAL_StatusTypeDef LIS2MDL_Init(LIS2MDL_HandleTypeDef *hlis2mdl) {
 
     buffer[0] = CFG_REG_A_COMP_TEMP_EN | CFG_REG_A_MD_1 | CFG_REG_A_MD_0;
     buffer[1] = CFG_REG_B_LPF;
-    buffer[2] = CFG_REG_C_BDU;
+    buffer[2] = 0;
 
     status = HAL_I2C_Mem_Write(hlis2mdl->I2CInstance,
                                hlis2mdl->DevAddress,

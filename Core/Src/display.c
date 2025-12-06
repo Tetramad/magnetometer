@@ -264,6 +264,6 @@ static void Write(DISPLAY_HandleTypeDef *hdisplay, char c) {
 }
 
 static void Clear(DISPLAY_HandleTypeDef *hdisplay) {
-    Command(hdisplay, 0x01);
+    Command(hdisplay, 0x02);
     MICROWAIT_DelayMicro(hdisplay->MICROWAITInstance, 1520);
 }
