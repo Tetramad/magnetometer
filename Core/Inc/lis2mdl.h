@@ -19,5 +19,9 @@ HAL_StatusTypeDef LIS2MDL_IsDataReady(LIS2MDL_HandleTypeDef *hlis2mdl);
 uint16_t LIS2MDL_OUTX(LIS2MDL_HandleTypeDef *hlis2mdl);
 uint16_t LIS2MDL_OUTY(LIS2MDL_HandleTypeDef *hlis2mdl);
 uint16_t LIS2MDL_OUTZ(LIS2MDL_HandleTypeDef *hlis2mdl);
+HAL_StatusTypeDef LIS2MDL_OUTXYZ(LIS2MDL_HandleTypeDef *hlis2mdl,
+                                 uint16_t *outx,
+                                 uint16_t *outy,
+                                 uint16_t *outz);
 
 #endif /* LIS2MDL_H_ */

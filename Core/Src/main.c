@@ -164,7 +164,7 @@ int main(void) {
                .task = Task_ModeUpdate,
                .name = "ModeUpdate"},
         [1] = {.target_tick = 0,
-               .tick_alignment = 250,
+               .tick_alignment = 200,
                .task = Task_MagneticMeasurementUpdate,
                .name = "MagneticMeasurementUpdate"},
         [2] = {.target_tick = 0,
@@ -172,7 +172,7 @@ int main(void) {
                .task = Task_SOHUpdate,
                .name = "SOHUpdate"},
         [3] = {.target_tick = 0,
-               .tick_alignment = 250,
+               .tick_alignment = 200,
                .task = Task_DisplayUpdate,
                .name = "DisplayUpdate"},
     };
@@ -687,24 +687,14 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
         return HAL_ERROR;
     }
 
-    int data_ready = 0;
-    for (size_t i = 0; i < 3; ++i) {
-        status = LIS2MDL_IsDataReady(&hlis2mdl);
-        if (status == HAL_OK) {
-            data_ready = !0;
-            break;
-        }
+    uint16_t x_code = 0U;
+    uint16_t y_code = 0U;
+    uint16_t z_code = 0U;
 
-        HAL_Delay(10);
-    }
-
-    if (!data_ready) {
+    status = LIS2MDL_OUTXYZ(&hlis2mdl, &x_code, &y_code, &z_code);
+    if (status != HAL_OK) {
         return HAL_ERROR;
     }
-
-    const uint16_t x_code = LIS2MDL_OUTX(&hlis2mdl);
-    const uint16_t y_code = LIS2MDL_OUTY(&hlis2mdl);
-    const uint16_t z_code = LIS2MDL_OUTZ(&hlis2mdl);
 
     const float x_mgauss =
         (float)((int16_t)x_code - MAGNETIC_FLUX_OFFSET_X) * 1.5f;

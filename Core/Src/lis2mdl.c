@@ -68,11 +68,6 @@ HAL_StatusTypeDef LIS2MDL_StartSingleMode(LIS2MDL_HandleTypeDef *hlis2mdl) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer = 0;
 
-    status = LIS2MDL_CheckSanity(hlis2mdl);
-    if (status != HAL_OK) {
-        return HAL_ERROR;
-    }
-
     status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
                               hlis2mdl->DevAddress,
                               CFG_REG_A,
@@ -104,11 +99,6 @@ HAL_StatusTypeDef LIS2MDL_IsDataReady(LIS2MDL_HandleTypeDef *hlis2mdl) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer = 0;
 
-    status = LIS2MDL_CheckSanity(hlis2mdl);
-    if (status != HAL_OK) {
-        return HAL_ERROR;
-    }
-
     status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
                               hlis2mdl->DevAddress,
                               STATUS_REG,
@@ -131,11 +121,6 @@ uint16_t LIS2MDL_OUTX(LIS2MDL_HandleTypeDef *hlis2mdl) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer[2] = {0};
 
-    status = LIS2MDL_CheckSanity(hlis2mdl);
-    if (status != HAL_OK) {
-        return 0U;
-    }
-
     status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
                               hlis2mdl->DevAddress,
                               OUTX_L_REG | AUTO_INCREMENT,
@@ -153,11 +138,6 @@ uint16_t LIS2MDL_OUTX(LIS2MDL_HandleTypeDef *hlis2mdl) {
 uint16_t LIS2MDL_OUTY(LIS2MDL_HandleTypeDef *hlis2mdl) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer[2] = {0};
-
-    status = LIS2MDL_CheckSanity(hlis2mdl);
-    if (status != HAL_OK) {
-        return 0U;
-    }
 
     status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
                               hlis2mdl->DevAddress,
@@ -177,11 +157,6 @@ uint16_t LIS2MDL_OUTZ(LIS2MDL_HandleTypeDef *hlis2mdl) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer[2] = {0};
 
-    status = LIS2MDL_CheckSanity(hlis2mdl);
-    if (status != HAL_OK) {
-        return 0U;
-    }
-
     status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
                               hlis2mdl->DevAddress,
                               OUTZ_L_REG | AUTO_INCREMENT,
@@ -194,4 +169,29 @@ uint16_t LIS2MDL_OUTZ(LIS2MDL_HandleTypeDef *hlis2mdl) {
     }
 
     return (uint16_t)((buffer[1] << 8U) | buffer[0]);
+}
+
+HAL_StatusTypeDef LIS2MDL_OUTXYZ(LIS2MDL_HandleTypeDef *hlis2mdl,
+                                 uint16_t *outx,
+                                 uint16_t *outy,
+                                 uint16_t *outz) {
+    HAL_StatusTypeDef status = HAL_OK;
+    uint8_t buffer[6] = {0};
+
+    status = HAL_I2C_Mem_Read(hlis2mdl->I2CInstance,
+                              hlis2mdl->DevAddress,
+                              OUTX_L_REG | AUTO_INCREMENT,
+                              I2C_MEMADD_SIZE_8BIT,
+                              &buffer[0],
+                              6,
+                              10);
+    if (status != HAL_OK) {
+        return HAL_ERROR;
+    }
+
+    *outx = (uint16_t)((buffer[1] << 8U) | buffer[0]);
+    *outy = (uint16_t)((buffer[3] << 8U) | buffer[2]);
+    *outz = (uint16_t)((buffer[5] << 8U) | buffer[4]);
+
+    return HAL_OK;
 }
