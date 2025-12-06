@@ -752,6 +752,15 @@ static HAL_StatusTypeDef Task_SOHUpdate(void) {
 }
 
 static HAL_StatusTypeDef Task_DisplayUpdate(void) {
+    assert(abs((int)magnetic_flux_x_mgauss) <= 99999);
+    assert(abs((int)magnetic_flux_y_mgauss) <= 99999);
+    assert(abs((int)magnetic_flux_z_mgauss) <= 99999);
+    assert(abs((int)magnetic_flux_magnitude_mgauss) <= 99999);
+
+    if (DISPLAY_CheckSanity(&hdisplay) != HAL_OK) {
+        return HAL_ERROR;
+    }
+
     switch (mode_state) {
     default:
     case MOD_MODE_STATE_UNKNOWN:

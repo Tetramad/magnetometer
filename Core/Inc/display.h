@@ -43,6 +43,7 @@ typedef struct {
 HAL_StatusTypeDef DISPLAY_Init(DISPLAY_HandleTypeDef *hdisplay);
 HAL_StatusTypeDef
 DISPLAY_Print(DISPLAY_HandleTypeDef *hdisplay, const char *format, ...);
+HAL_StatusTypeDef DISPLAY_CheckSanity(DISPLAY_HandleTypeDef *hdisplay);
 
 
 #endif /* DISPLAY_H_ */
