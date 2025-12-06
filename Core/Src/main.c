@@ -706,8 +706,6 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
     const uint16_t y_code = LIS2MDL_OUTY(&hlis2mdl);
     const uint16_t z_code = LIS2MDL_OUTZ(&hlis2mdl);
 
-    LOG_LEVEL_SET(LOG_LEVEL_DBG);
-
     const float x_mgauss =
         (float)((int16_t)x_code - MAGNETIC_FLUX_OFFSET_X) * 1.5f;
     const float y_mgauss =
@@ -715,27 +713,28 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
     const float z_mgauss =
         (float)((int16_t)z_code - MAGNETIC_FLUX_OFFSET_Z) * 1.5f;
 
-    LOG_DBG("MAG X: %d", (int16_t)(x_mgauss / 1.5f));
-    LOG_DBG("MAG Y: %d", (int16_t)(y_mgauss / 1.5f));
-    LOG_DBG("MAG Z: %d", (int16_t)(z_mgauss / 1.5f));
-
     /*
 	 * TODO: should be tidy out
 	 */
     const float magnitude_mgauss =
         sqrtf(x_mgauss * x_mgauss + y_mgauss * y_mgauss + z_mgauss * z_mgauss);
 
-    /*
-     * TODO: something wrong
-     */
     const float bearing_degree = ({
-        const float theta1 = isgreater(fabsf(x_mgauss), fabsf(y_mgauss))
-                                 ? acosf(fabsf(x_mgauss) / magnitude_mgauss)
-                                 : asinf(fabsf(y_mgauss) / magnitude_mgauss);
-        const float theta0 =
-            theta1 + (float)M_PI * !!signbit(y_mgauss) +
-            (float)M_PI_2 * (!!signbit(x_mgauss) ^ !!signbit(y_mgauss));
-        (2.0f * (float)M_PI - theta0) * 180.0f / (float)M_PI;
+        float theta = 0.0f;
+        if (isless(fabsf(x_mgauss), 0.001f) &&
+            isless(fabsf(y_mgauss), 0.001f)) {
+            theta = 0.0f;
+        } else if (isless(fabsf(x_mgauss), 0.001f) && signbit(y_mgauss)) {
+            theta = (float)M_PI_2 * 3.0f;
+        } else if (isless(fabsf(x_mgauss), 0.001f) && !signbit(y_mgauss)) {
+            theta = (float)M_PI_2 * 1.0f;
+        } else {
+            theta =
+                atanf(y_mgauss / -x_mgauss) +
+                (!signbit(x_mgauss) * (float)M_PI) +
+                ((signbit(x_mgauss) && signbit(y_mgauss)) * 2.0f * (float)M_PI);
+        }
+        theta * 180.0f / (float)M_PI;
     });
 
     magnetic_flux_x_mgauss = x_mgauss;
