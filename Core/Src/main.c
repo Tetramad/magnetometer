@@ -745,10 +745,8 @@ static HAL_StatusTypeDef Task_SOHUpdate(void) {
     }
 
     gas_gauge_charge_used_uah = STC3100_ChargeUsed_uAh(&hstc3100);
-    gas_gauge_voltage_mv = STC3100_Voltage_mV(&hstc3100);
 
     LOG_DBG("Charge Used: %d uAh", (int)gas_gauge_charge_used_uah);
-    LOG_DBG("Battery Voltage: %d mV", (int)gas_gauge_voltage_mv);
 
     return HAL_OK;
 }
