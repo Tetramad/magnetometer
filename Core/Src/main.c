@@ -220,15 +220,13 @@ int main(void) {
             }
         }
 
-        /**
-         * TODO: Cleanup these things.
-         */
         HAL_SuspendTick();
         HAL_RTCEx_SetWakeUpTimer_IT(&hrtc,
                                     (task->target_tick - current_tick) * 2,
                                     RTC_WAKEUPCLOCK_RTCCLK_DIV16);
         HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
         HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
+        /* Add elapsed tick while STOP */
         uwTick += task->target_tick - current_tick;
         HAL_ResumeTick();
         /* USER CODE END WHILE */
@@ -695,14 +693,21 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
     const float z_mgauss =
         (float)((int16_t)z_code - MAGNETIC_FLUX_OFFSET_Z) * 1.5f;
 
-    /*
-	 * TODO: should be tidy out
-	 */
-    const float magnitude_mgauss =
-        sqrtf(x_mgauss * x_mgauss + y_mgauss * y_mgauss + z_mgauss * z_mgauss);
+    float magnitude_mgauss = 0.0f;
+    {
+        float acc = 0.0f;
 
-    const float bearing_degree = ({
+        acc += x_mgauss * x_mgauss;
+        acc += y_mgauss * y_mgauss;
+        acc += z_mgauss * z_mgauss;
+
+        magnitude_mgauss = sqrtf(acc);
+    }
+
+    float bearing_degree = 0.0f;
+    {
         float theta = 0.0f;
+
         if (isless(fabsf(x_mgauss), 0.001f) &&
             isless(fabsf(y_mgauss), 0.001f)) {
             theta = 0.0f;
@@ -716,8 +721,9 @@ HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void) {
                 (!signbit(x_mgauss) * (float)M_PI) +
                 ((signbit(x_mgauss) && signbit(y_mgauss)) * 2.0f * (float)M_PI);
         }
-        theta * 180.0f / (float)M_PI;
-    });
+
+        bearing_degree = theta * 180.0f / (float)M_PI;
+    };
 
     magnetic_flux_x_mgauss = x_mgauss;
     magnetic_flux_y_mgauss = y_mgauss;
