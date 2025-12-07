@@ -33,6 +33,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+struct tick_aligned_task {
+    uint64_t target_tick;
+    const uint16_t tick_alignment; /*< 32767 (~32s) Max. */
+    HAL_StatusTypeDef (*const task)(void);
+    const char *const name;
+};
 
 /* USER CODE END PTD */
 
@@ -110,6 +116,7 @@ int main(void) {
 
     /* USER CODE BEGIN 1 */
     HAL_StatusTypeDef status = HAL_OK;
+    uint64_t latest_extend_tick = 0U;
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -151,13 +158,6 @@ int main(void) {
 
     HAL_Delay(50);
 
-    struct tick_aligned_task {
-        uint32_t target_tick;
-        const uint32_t tick_alignment;
-        HAL_StatusTypeDef (*const task)(void);
-        const char *const name;
-    };
-
     struct tick_aligned_task tasks[] = {
         [0] = {.target_tick = 0,
                .tick_alignment = 1000,
@@ -181,25 +181,33 @@ int main(void) {
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     assert(sizeof(tasks) / sizeof(*tasks) > 0);
+    for (struct tick_aligned_task *t = &tasks[0];
+         t < &tasks[sizeof(tasks) / sizeof(*tasks)];
+         ++t) {
+        assert(t->target_tick <= UINT32_MAX &&
+               t->tick_alignment <= UINT16_MAX / 2);
+    }
     while (1) {
-        /**
-		 * TODO: Tick Overflow dectection logic needed. it will be broken after nearly 49 days.
-		 */
         const uint32_t current_tick = HAL_GetTick();
+        if ((latest_extend_tick & 0xFFFFFFFFULL) > current_tick) {
+            latest_extend_tick += 0x100000000ULL;
+        }
+        latest_extend_tick &= ~0xFFFFFFFFULL;
+        latest_extend_tick += current_tick;
 
         struct tick_aligned_task *task = NULL;
         for (struct tick_aligned_task *t = &tasks[0];
              t < &tasks[sizeof(tasks) / sizeof(*tasks)];
              ++t) {
-            if (t->target_tick <= current_tick) {
+            if (t->target_tick <= latest_extend_tick) {
                 task = t;
                 break;
             }
         }
 
         if (task != NULL) {
-            task->target_tick = current_tick -
-                                (current_tick % task->tick_alignment) +
+            task->target_tick = latest_extend_tick -
+                                (latest_extend_tick % task->tick_alignment) +
                                 task->tick_alignment;
             if (task->task != NULL) {
                 status = task->task();
@@ -220,14 +228,16 @@ int main(void) {
             }
         }
 
+        assert(task->target_tick - latest_extend_tick <= UINT16_MAX / 2);
+        const uint32_t stop_duration =
+            (uint16_t)((task->target_tick - latest_extend_tick) * 2);
         HAL_SuspendTick();
-        HAL_RTCEx_SetWakeUpTimer_IT(&hrtc,
-                                    (task->target_tick - current_tick) * 2,
-                                    RTC_WAKEUPCLOCK_RTCCLK_DIV16);
+        HAL_RTCEx_SetWakeUpTimer_IT(
+            &hrtc, stop_duration, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
         HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
         HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
         /* Add elapsed tick while STOP */
-        uwTick += task->target_tick - current_tick;
+        uwTick += (uint32_t)(task->target_tick - latest_extend_tick);
         HAL_ResumeTick();
         /* USER CODE END WHILE */
 
