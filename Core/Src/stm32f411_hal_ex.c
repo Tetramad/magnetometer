@@ -5,7 +5,7 @@
 
 #include <log.h>
 
-LOG_LEVEL_SET(LOG_LEVEL_DBG);
+LOG_LEVEL_SET(LOG_LEVEL_INF);
 
 void HAL_Delay(uint32_t Delay) {
     uint32_t tickstart = HAL_GetTick();

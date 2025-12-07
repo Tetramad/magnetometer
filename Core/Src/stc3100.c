@@ -9,7 +9,7 @@
 #define VOLTAGE_RESOLUTION 2.44
 #define RSHUNT_OHM 0.932084
 
-LOG_LEVEL_SET(LOG_LEVEL_DBG);
+LOG_LEVEL_SET(LOG_LEVEL_INF);
 
 HAL_StatusTypeDef STC3100_Init(STC3100_HandleTypeDef *hstc3100) {
     HAL_StatusTypeDef status = HAL_OK;

@@ -36,7 +36,7 @@ static void Command(DISPLAY_HandleTypeDef *hdisplay, uint8_t i);
 static void Clear(DISPLAY_HandleTypeDef *hdisplay);
 static void Write(DISPLAY_HandleTypeDef *hdisplay, char c);
 
-LOG_LEVEL_SET(LOG_LEVEL_DBG);
+LOG_LEVEL_SET(LOG_LEVEL_INF);
 
 HAL_StatusTypeDef DISPLAY_Init(DISPLAY_HandleTypeDef *hdisplay) {
     if (hdisplay->Init.BusMode != DISPLAY_BUS_MODE_4 &&
