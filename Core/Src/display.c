@@ -22,6 +22,9 @@
 #define DISPLAY_DB_WRITE(Handle, N, PinState)                                  \
     HAL_GPIO_WritePin((Handle)->DB_Port[(N)], (Handle)->DB_Pin[(N)], (PinState))
 
+#define DISPLAY_DB_READ(Handle, N)                                             \
+    HAL_GPIO_ReadPin((Handle)->DB_Port[(N)], (Handle)->DB_Pin[(N)]);
+
 #define DISPLAY_DB_INIT(Handle, N, OpMode)                                     \
     HAL_GPIO_Init((Handle)->DB_Port[(N)],                                      \
                   &(GPIO_InitTypeDef){.Pin = (Handle)->DB_Pin[(N)],            \
@@ -170,9 +173,7 @@ static int CheckBusyFlag(DISPLAY_HandleTypeDef *hdisplay) {
     DISPLAY_E_WRITE(hdisplay, GPIO_PIN_SET);
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
 
-    /* TODO: extract out HAL_GPIO_* */
-    const GPIO_PinState busy_flag =
-        HAL_GPIO_ReadPin(hdisplay->DB_Port[3], hdisplay->DB_Pin[3]);
+    const GPIO_PinState busy_flag = DISPLAY_DB_READ(hdisplay, 3);
 
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
     DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
@@ -230,13 +231,13 @@ static uint8_t ReadAddress(DISPLAY_HandleTypeDef *hdisplay) {
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
 
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[3], hdisplay->DB_Pin[3]);
+    address |= DISPLAY_DB_READ(hdisplay, 3);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[2], hdisplay->DB_Pin[2]);
+    address |= DISPLAY_DB_READ(hdisplay, 2);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[1], hdisplay->DB_Pin[1]);
+    address |= DISPLAY_DB_READ(hdisplay, 1);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[0], hdisplay->DB_Pin[0]);
+    address |= DISPLAY_DB_READ(hdisplay, 0);
 
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
     DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
@@ -250,13 +251,13 @@ static uint8_t ReadAddress(DISPLAY_HandleTypeDef *hdisplay) {
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
 
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[3], hdisplay->DB_Pin[3]);
+    address |= DISPLAY_DB_READ(hdisplay, 3);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[2], hdisplay->DB_Pin[2]);
+    address |= DISPLAY_DB_READ(hdisplay, 2);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[1], hdisplay->DB_Pin[1]);
+    address |= DISPLAY_DB_READ(hdisplay, 1);
     address <<= 1;
-    address |= HAL_GPIO_ReadPin(hdisplay->DB_Port[0], hdisplay->DB_Pin[0]);
+    address |= DISPLAY_DB_READ(hdisplay, 0);
 
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1);
     DISPLAY_E_WRITE(hdisplay, GPIO_PIN_RESET);
