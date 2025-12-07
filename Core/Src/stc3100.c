@@ -7,15 +7,16 @@
 /** 11.77uV * 0.5s * (1h / 3600s) * (2^12 LSB_ADC / 1 LSB_ACC) */
 #define CHARGE_RESOLUTION 6.695822221312
 #define VOLTAGE_RESOLUTION 2.44
+#define RSHUNT_OHM 0.932084
 
-LOG_LEVEL_SET(LOG_LEVEL_INF);
+LOG_LEVEL_SET(LOG_LEVEL_DBG);
 
 HAL_StatusTypeDef STC3100_Init(STC3100_HandleTypeDef *hstc3100) {
     HAL_StatusTypeDef status = HAL_OK;
     uint8_t buffer[2] = {0};
 
     hstc3100->DevAddress = SLAVE_ADDRESS;
-    hstc3100->RShunt_ohm = 0.0043f; /*< has to be changed */
+    hstc3100->RShunt_ohm = (float)RSHUNT_OHM;
 
     for (size_t i = 0; i < 5; ++i) {
         status = HAL_I2C_Mem_Read(hstc3100->I2CInstance,

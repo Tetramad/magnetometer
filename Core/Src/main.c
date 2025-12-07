@@ -778,8 +778,14 @@ static HAL_StatusTypeDef Task_DisplayUpdate(void) {
         return DISPLAY_Print(
             &hdisplay, "B %6d", (int)magnetic_flux_bearing_degree);
     case MOD_MODE_STATE_SOH:
-        return DISPLAY_Print(
-            &hdisplay, "S %6d", (int)gas_gauge_charge_used_uah);
+        if (gas_gauge_charge_used_uah < 1000.0f) {
+            return DISPLAY_Print(
+                &hdisplay, "S %5du", (int)gas_gauge_charge_used_uah);
+        } else {
+            return DISPLAY_Print(&hdisplay,
+                                 "S %5dm",
+                                 (int)(gas_gauge_charge_used_uah / 1000.0f));
+        }
     }
 }
 /* USER CODE END 4 */
