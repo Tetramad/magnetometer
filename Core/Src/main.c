@@ -44,9 +44,9 @@ struct tick_aligned_task {
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define MAGNETIC_FLUX_OFFSET_X ((int16_t)(-26))
-#define MAGNETIC_FLUX_OFFSET_Y ((int16_t)(256))
-#define MAGNETIC_FLUX_OFFSET_Z ((int16_t)(10))
+#define MAGNETIC_FLUX_OFFSET_X ((int16_t)(151.319))
+#define MAGNETIC_FLUX_OFFSET_Y ((int16_t)(304.571))
+#define MAGNETIC_FLUX_OFFSET_Z ((int16_t)(-471.442))
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
