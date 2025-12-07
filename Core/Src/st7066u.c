@@ -92,7 +92,7 @@ HAL_StatusTypeDef ST7066U_Init(ST7066U_HandleTypeDef *hdisplay) {
     Command(hdisplay, 0x01);
     UDELAY_DelayMicro(hdisplay->MICROWAITInstance, 1520);
 
-    ST7066U_Print(hdisplay, "%s", "Init...");
+    ST7066U_Print(hdisplay, "%s", "Wait...");
 
     if (ST7066U_CheckSanity(hdisplay) != HAL_OK) {
         return HAL_ERROR;
