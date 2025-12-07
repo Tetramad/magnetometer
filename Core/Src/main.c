@@ -63,7 +63,7 @@ LOG_LEVEL_SET(LOG_LEVEL_INF);
 MOD_HandleTypeDef hmod;
 LIS2MDL_HandleTypeDef hlis2mdl;
 STC3100_HandleTypeDef hstc3100;
-MICROWAIT_HandleTypeDef hmicrowait;
+UDELAY_HandleTypeDef hmicrowait;
 DISPLAY_HandleTypeDef hdisplay;
 
 MOD_ModeStateTypedef mode_state = MOD_MODE_STATE_UNKNOWN;
@@ -89,7 +89,7 @@ static void MX_TIM2_Init(void);
 static void NotMX_MOD_Init(void);
 static void NotMX_LIS2MDL_Init(void);
 static void NotMX_STC3100_Init(void);
-static void NotMX_MICROWAIT_Init(void);
+static void NotMX_UDELAY_Init(void);
 static void NotMX_DISPLAY_Init(void);
 static HAL_StatusTypeDef Task_ModeUpdate(void);
 static HAL_StatusTypeDef Task_MagneticMeasurementUpdate(void);
@@ -140,7 +140,7 @@ int main(void) {
     NotMX_MOD_Init();
     NotMX_LIS2MDL_Init();
     NotMX_STC3100_Init();
-    NotMX_MICROWAIT_Init();
+    NotMX_UDELAY_Init();
     NotMX_DISPLAY_Init();
 
     HAL_Delay(50);
@@ -590,10 +590,10 @@ static void NotMX_STC3100_Init(void) {
     }
 }
 
-static void NotMX_MICROWAIT_Init(void) {
+static void NotMX_UDELAY_Init(void) {
     hmicrowait.TIMInstance = &htim2;
 
-    if (MICROWAIT_Init(&hmicrowait) != HAL_OK) {
+    if (UDELAY_Init(&hmicrowait) != HAL_OK) {
         LOG_ERR("failed to initialize MICROWAIT");
         return;
         /* TODO: fix */

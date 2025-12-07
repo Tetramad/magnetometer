@@ -5,7 +5,7 @@
 
 #include <stm32f4xx_hal.h>
 
-#include <micro_wait.h>
+#include <udelay.h>
 
 enum {
     DISPLAY_BUS_MODE_4,
@@ -27,7 +27,7 @@ typedef struct {
 } DISPLAY_InitTypeDef;
 
 typedef struct {
-    MICROWAIT_HandleTypeDef *MICROWAITInstance;
+    UDELAY_HandleTypeDef *MICROWAITInstance;
     DISPLAY_InitTypeDef Init;
     DISPLAY_BusModeTypeDef BusMode;
     GPIO_TypeDef *RS_Port;
@@ -44,6 +44,5 @@ HAL_StatusTypeDef DISPLAY_Init(DISPLAY_HandleTypeDef *hdisplay);
 HAL_StatusTypeDef
 DISPLAY_Print(DISPLAY_HandleTypeDef *hdisplay, const char *format, ...);
 HAL_StatusTypeDef DISPLAY_CheckSanity(DISPLAY_HandleTypeDef *hdisplay);
-
 
 #endif /* DISPLAY_H_ */

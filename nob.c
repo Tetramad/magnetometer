@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
         "Core/Src/mode_selector",
         "Core/Src/lis2mdl",
         "Core/Src/stc3100",
-        "Core/Src/micro_wait",
+        "Core/Src/udelay",
         "Core/Src/display",
     };
 

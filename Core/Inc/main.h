@@ -35,7 +35,7 @@ extern "C" {
 #include "mode_selector.h"
 #include "lis2mdl.h"
 #include "stc3100.h"
-#include "micro_wait.h"
+#include "udelay.h"
 #include "display.h"
 
 /* USER CODE END Includes */

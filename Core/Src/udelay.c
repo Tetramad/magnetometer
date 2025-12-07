@@ -2,23 +2,17 @@
 
 #include <stm32f4xx_hal.h>
 
-#include <micro_wait.h>
+#include <udelay.h>
 
 /* TODO: maybe change name to Micro Delay? */
 
-HAL_StatusTypeDef MICROWAIT_Init(MICROWAIT_HandleTypeDef *hmicrowait) {
+HAL_StatusTypeDef UDELAY_Init(UDELAY_HandleTypeDef *hmicrowait) {
     UNUSED(hmicrowait);
 
     return HAL_OK;
 }
 
-void MICROWAIT_DelayMilli(MICROWAIT_HandleTypeDef *hmicrowait, unsigned Delay) {
-    UNUSED(hmicrowait);
-
-    HAL_Delay(Delay);
-}
-
-void MICROWAIT_DelayMicro(MICROWAIT_HandleTypeDef *hmicrowait, unsigned Delay) {
+void UDELAY_DelayMicro(UDELAY_HandleTypeDef *hmicrowait, unsigned Delay) {
     if (Delay < UINT_MAX) {
         ++Delay;
     }
