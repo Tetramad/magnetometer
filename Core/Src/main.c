@@ -147,7 +147,7 @@ int main(void) {
 
     LOG_INF("Magnetometer");
     LOG_INF("H/W Rev.2");
-    LOG_INF("F/W Ver.1.2.0");
+    LOG_INF("F/W Ver.1.3.0");
 
     HAL_Delay(50);
 
