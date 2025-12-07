@@ -4,8 +4,6 @@
 
 #include <udelay.h>
 
-/* TODO: maybe change name to Micro Delay? */
-
 HAL_StatusTypeDef UDELAY_Init(UDELAY_HandleTypeDef *hmicrowait) {
     UNUSED(hmicrowait);
 
