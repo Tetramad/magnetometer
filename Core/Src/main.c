@@ -64,7 +64,7 @@ MOD_HandleTypeDef hmod;
 LIS2MDL_HandleTypeDef hlis2mdl;
 STC3100_HandleTypeDef hstc3100;
 UDELAY_HandleTypeDef hmicrowait;
-DISPLAY_HandleTypeDef hdisplay;
+ST7066U_HandleTypeDef hdisplay;
 
 MOD_ModeStateTypedef mode_state = MOD_MODE_STATE_UNKNOWN;
 
@@ -603,7 +603,7 @@ static void NotMX_UDELAY_Init(void) {
 
 static void NotMX_DISPLAY_Init(void) {
     hdisplay.MICROWAITInstance = &hmicrowait;
-    hdisplay.Init.BusMode = DISPLAY_BUS_MODE_4;
+    hdisplay.Init.BusMode = ST7066U_BUS_MODE_4;
 
     hdisplay.Init.RS_Port = LCD_RS_GPIO_Port;
     hdisplay.Init.RS_Pin = LCD_RS_Pin;
@@ -629,7 +629,7 @@ static void NotMX_DISPLAY_Init(void) {
     hdisplay.Init.DB_Port[7] = LCD_DB7_GPIO_Port;
     hdisplay.Init.DB_Pin[7] = LCD_DB7_Pin;
 
-    if (DISPLAY_Init(&hdisplay) != HAL_OK) {
+    if (ST7066U_Init(&hdisplay) != HAL_OK) {
         LOG_ERR("failed to initialize DISPLAY");
         return;
         /* TODO: fix */
@@ -757,32 +757,32 @@ static HAL_StatusTypeDef Task_DisplayUpdate(void) {
     assert(abs((int)magnetic_flux_z_mgauss) <= 99999);
     assert(abs((int)magnetic_flux_magnitude_mgauss) <= 99999);
 
-    if (DISPLAY_CheckSanity(&hdisplay) != HAL_OK) {
+    if (ST7066U_CheckSanity(&hdisplay) != HAL_OK) {
         return HAL_ERROR;
     }
 
     switch (mode_state) {
     default:
     case MOD_MODE_STATE_UNKNOWN:
-        return DISPLAY_Print(&hdisplay, "%s", "Unknown");
+        return ST7066U_Print(&hdisplay, "%s", "Unknown");
     case MOD_MODE_STATE_X:
-        return DISPLAY_Print(&hdisplay, "X %6d", (int)magnetic_flux_x_mgauss);
+        return ST7066U_Print(&hdisplay, "X %6d", (int)magnetic_flux_x_mgauss);
     case MOD_MODE_STATE_Y:
-        return DISPLAY_Print(&hdisplay, "Y %6d", (int)magnetic_flux_y_mgauss);
+        return ST7066U_Print(&hdisplay, "Y %6d", (int)magnetic_flux_y_mgauss);
     case MOD_MODE_STATE_Z:
-        return DISPLAY_Print(&hdisplay, "Z %6d", (int)magnetic_flux_z_mgauss);
+        return ST7066U_Print(&hdisplay, "Z %6d", (int)magnetic_flux_z_mgauss);
     case MOD_MODE_STATE_MAGNITUDE:
-        return DISPLAY_Print(
+        return ST7066U_Print(
             &hdisplay, "M %6d", (int)magnetic_flux_magnitude_mgauss);
     case MOD_MODE_STATE_BEARING:
-        return DISPLAY_Print(
+        return ST7066U_Print(
             &hdisplay, "B %6d", (int)magnetic_flux_bearing_degree);
     case MOD_MODE_STATE_SOH:
         if (gas_gauge_charge_used_uah < 1000.0f) {
-            return DISPLAY_Print(
+            return ST7066U_Print(
                 &hdisplay, "S %5du", (int)gas_gauge_charge_used_uah);
         } else {
-            return DISPLAY_Print(&hdisplay,
+            return ST7066U_Print(&hdisplay,
                                  "S %5dm",
                                  (int)(gas_gauge_charge_used_uah / 1000.0f));
         }

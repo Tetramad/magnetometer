@@ -36,7 +36,7 @@ extern "C" {
 #include "lis2mdl.h"
 #include "stc3100.h"
 #include "udelay.h"
-#include "display.h"
+#include "st7066u.h"
 
 /* USER CODE END Includes */
 

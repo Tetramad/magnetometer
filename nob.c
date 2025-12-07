@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
         "Core/Src/lis2mdl",
         "Core/Src/stc3100",
         "Core/Src/udelay",
-        "Core/Src/display",
+        "Core/Src/st7066u",
     };
 
     mark = temp_save();
