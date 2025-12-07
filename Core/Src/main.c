@@ -573,8 +573,6 @@ static void NotMX_LIS2MDL_Init(void) {
 
     if (LIS2MDL_Init(&hlis2mdl) != HAL_OK) {
         LOG_ERR("failed to initialize LIS2MDL");
-        return;
-        /* TODO: fix */
         Error_Handler();
     }
 }
@@ -584,8 +582,6 @@ static void NotMX_STC3100_Init(void) {
 
     if (STC3100_Init(&hstc3100) != HAL_OK) {
         LOG_ERR("failed to initialize STC3100");
-        return;
-        /* TODO: fix */
         Error_Handler();
     }
 }
@@ -595,8 +591,6 @@ static void NotMX_UDELAY_Init(void) {
 
     if (UDELAY_Init(&hmicrowait) != HAL_OK) {
         LOG_ERR("failed to initialize MICROWAIT");
-        return;
-        /* TODO: fix */
         Error_Handler();
     }
 }
@@ -631,8 +625,6 @@ static void NotMX_DISPLAY_Init(void) {
 
     if (ST7066U_Init(&hdisplay) != HAL_OK) {
         LOG_ERR("failed to initialize DISPLAY");
-        return;
-        /* TODO: fix */
         Error_Handler();
     }
 }
@@ -796,9 +788,10 @@ static HAL_StatusTypeDef Task_DisplayUpdate(void) {
   */
 void Error_Handler(void) {
     /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
+    LOG_ERR("critical error on initialize peripherals");
     __disable_irq();
     while (1) {
+        HAL_PWR_EnterSTANDBYMode();
     }
     /* USER CODE END Error_Handler_Debug */
 }
