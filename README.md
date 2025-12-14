@@ -30,9 +30,14 @@
 ### ![하드웨어 설계도](Docs/schematic-magnetometer-v1.4.pdf)
 ### 펌웨어 구조
 T.B.A.
-### 센서 오차 보정
-T.B.A.
-## 결과물 측정
+### Least-squares 방법을 통한 센서 오프셋 보정
+#### 측정 샘플
+![samples](Docs/Figure-Samples.png)
+#### least-squares 방법으로 구한 센서 오프셋과 지자기장
+![result-of-regression](Docs/Figure-Regression.png)
+## 결과물
+![resulting-board](Docs/Result-Board.jpg)
+## 측정
 ### 대기 상태 (전원 오프)
 ![powerprofile-poweroff](Docs/ppk-poweroff-20251207T110214.png)
 ### 1분 사용 (NHD-0108HZ-FSW-GBW 사용)
