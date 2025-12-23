@@ -29,7 +29,7 @@
 ## 구현
 ### ![하드웨어 설계도](Docs/schematic-magnetometer-v1.4.pdf)
 ### 펌웨어 구조
-T.B.A.
+![firmware-structure](Docs/Firmware-Structure.jpg)
 ### Least-squares 방법을 통한 센서 오프셋 보정
 #### 측정 샘플
 ![samples](Docs/Figure-Samples.png)
